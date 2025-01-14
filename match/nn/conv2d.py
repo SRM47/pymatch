@@ -62,18 +62,23 @@ class Conv2d(Module):
     def __initialize_kernels(self, kernel_size: tuple | int) -> None:
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
+
         if len(kernel_size) != 2:
             raise RuntimeError(
                 "kernel_size should be a tuple of two ints. the first int is used for the height dimension, and the second int for the width dimension."
             )
+
         if any(kernel_dim <= 0 for kernel_dim in kernel_size):
             raise RuntimeError(
                 f"kernel size should be greater than zero, but got shape {kernel_size}"
             )
-        # Out channels is the number of kernels, so the true kernel is shape (filters, kernel_size, kernel_size)
+
         self._single_kernel_shape = (self.in_channels,) + kernel_size
-        # Each column will be a single kernel, and we have out_channel columns.
-        # The number of rows will be the number of elements in each kernel.
+
+        # Store all kernels as a 2D matrix for efficient memory access instead of
+        # another data structure that stores each 3D kernel individually.
+        # Each column represents a single kernel, resulting in out_channels columns.
+        # The number of rows corresponds to the total number of elements in each kernel.
         self._trainable_kernels: Tensor = Tensor.randn(
             prod(self._single_kernel_shape), self.out_channels
         )
@@ -83,54 +88,15 @@ class Conv2d(Module):
         if bias:
             self._trainable_bias = match.randn(self.out_channels)
 
-    def __create_tensor_with_duplicate_values(
-        self, x: Tensor, kernel_positions: list[slice], N: int
-    ) -> Tensor:
-        # Store all subtensors cooresponding to all kernel positions in an array
-        # and flatten them into a single dimension.
-        single_kernel_size = prod(self._single_kernel_shape)
-
-        # duplicate_values_array_flattened = [x.data[kernel_position].reshape(single_kernel_size) for kernel_position in kernel_positions]
-
-        duplicate_values_array_flattened = []
-        for kernel_position in kernel_positions:
-            # Grab subtensor.
-            subtensor = x.data[kernel_position]
-            # Flatten subtensor into single dimension.
-            flattened_subtensor = subtensor.reshape((single_kernel_size,))
-            # Add flattened subtensor into array.
-            duplicate_values_array_flattened.append(flattened_subtensor)
-
-        # Concatenate all of the Tensors into a single matrix. Each row is a single kernel position.
-        tensordata_with_duplicate_values = TensorData.concatenate(
-            tensordatas=duplicate_values_array_flattened, dim=0
-        )
-
-        if len(x.shape) == 4:
-            tensordata_with_duplicate_values.reshape_(
-                (
-                    N,
-                    int(len(kernel_positions) / N),
-                    prod(self._single_kernel_shape),
-                )  # Divide by N because kernel positions includes those for all N instances in the batch
-            )
-            print(
-                f"Reshaping to {(N,int(len(kernel_positions) / N),prod(self._single_kernel_shape))}"
-            )
-        else:
-            tensordata_with_duplicate_values.reshape_(
-                (
-                    len(kernel_positions),
-                    prod(self._single_kernel_shape),
-                )  # Only single batch so N=1
-            )
-            print(
-                f"Reshaping to {(len(kernel_positions),prod(self._single_kernel_shape))}"
-            )
-
-        return Tensor(data=tensordata_with_duplicate_values)
-
     def get_expected_output_dimensions(self, x: Tensor) -> tuple[int]:
+        """Calculates rhe expected dimensions of the output tensor after the convolution.
+
+        Args:
+            x (Tensor): The input tensor.
+
+        Returns:
+            tuple[int]: The expected output shape of the tensor.
+        """
         N = None
         if len(x.shape) == 4:
             N, _, height_in, width_in = x.shape
@@ -168,90 +134,23 @@ class Conv2d(Module):
         else:
             return self.out_channels, height_out, width_out
 
-    def forward(self, x: Tensor) -> Tensor:
-        # Assume tensor is shape (N, in_channels, H, W) or (in_channels, H W)
-        N = None
-        if x.dim() == 4:
-            N, _, height_in, width_in = x.shape
-        elif x.dim() == 3:
-            _, height_in, width_in = x.shape
-        else:
-            raise ValueError(
-                "Incorrect shape: Either (N, in_channels, H, W) or (in_channels, H W)"
-            )
-
-        print(f"Shape of tensor input: {x.shape}")
-
-        # Flatten kernel positions.
-        # Each row represents a single placement of the kernel on the input tensor.
-        # This flattens the 2D spatial positions into a single row per kernel placement.
-        # The resulting shape is: (number of kernel positions in the input tensor, number of elements in the kernel)
-
-        kernel_positions, h, w = self.__get_kernel_position_slices_conv2d(
-            height_in, width_in, N
-        )
-
-        expected_output_dimensions = self.get_expected_output_dimensions(x)
-        height_out, width_out = expected_output_dimensions[-2:]
-
-        print(f"Actual height_out: {h} ... should be {height_out}")
-        print(f"Actual width_out: {w} ... should be {width_out}")
-        print(
-            f"Number of kernel positions: {len(kernel_positions)} ... should be {(N or 1)*height_out*width_out}\n"
-        )
-        tensor_with_duplicate_values = self.__create_tensor_with_duplicate_values(
-            x, kernel_positions, N
-        )
-
-        # (9 positions, 32 kernels)
-        print(
-            f"Multiplying tensor w/ duplicates and kernels ... {tensor_with_duplicate_values.shape} @ {self._trainable_kernels.shape} "
-        )
-        convolution_tensor: Tensor = (
-            tensor_with_duplicate_values @ self._trainable_kernels
-        )
-        print(
-            f"Convolution tensor (after product) shape: {convolution_tensor.shape} ... should be {(N, int(len(kernel_positions)/(N or 1)), self.out_channels)}"
-        )
-        # Add bias here before reshaping into desired tensor
-        ct1 = convolution_tensor
-        if self.bias:
-            print("Adding bias...")
-            ct1 = convolution_tensor + self._trainable_bias
-
-        # (32 kernels, 9 positions)
-        # We only want to transpose the last two dimensions...permute!
-        if len(convolution_tensor.shape) == 3:
-            permute_shape = (0, 2, 1)
-        else:
-            permute_shape = (1, 0)
-
-        # What about gradient here?
-        #  convolution_tensor.data = convolution_tensor.data.permute(*permute_shape)
-        #  convolution_tensor.shape = convolution_tensor.data.shape
-        ct2 = ct1.permute(*permute_shape)
-        print(
-            f"Convolution tensor transpose shape: {ct2.shape} ... should be {(N, self.out_channels, int(len(kernel_positions)/(N or 1)))}"
-        )
-
-        # do reshape (N, 32, H*W) -> (N, 32, H, W)
-
-        # What about th gradient here?
-        if len(x.shape) == 4:
-            ct3 = ct2.reshape(N, self.out_channels, height_out, width_out)
-        else:
-            ct3 = ct2.reshape(self.out_channels, height_out, width_out)
-
-        print(f"Final shape: {ct3.shape} ... should be {expected_output_dimensions}")
-
-        return ct3
-
-    def __get_kernel_position_slices_conv2d(
+    def __get_kernel_position_slices(
         self,
         height_in: int,
         width_in: int,
-        N: Optional[int] = None,
+        N: int = None,
     ) -> tuple[slice]:
+        """Calculates the slice positions for applying the kernels to the input tensor.
+        The returned tuple is a sequence of slices that tracks how a kernel glides across the input tensor.
+
+        Args:
+            height_in (int): The height of each instance of the input tensor
+            width_in (int): The width of each instance of the input tensor
+            N (int, optional): Batch size, if batch provided. Defaults to None.
+
+        Returns:
+            tuple[slice]: An ordered tuple of many slice objects defining the positions a kernel will be applied within the input tensor.
+        """
 
         # Unpack kernel dimensions and convolution parameters into individual parameters.
         kernel_channels, kernel_height, kernel_width = self._single_kernel_shape
@@ -285,15 +184,128 @@ class Conv2d(Module):
                     )
                 )
 
-        if N:  # if N is not None, the tensor is 4 dimensional
+        if N:
+            # If N is not None, the tensor is 4D.
             instance_kernel_positions = [
                 (n,) + position
                 for n in range(N)
                 for position in instance_kernel_positions
             ]
 
-        # Calculate actual output dimensions for verification
+        # Calculate actual output dimensions for verification.
         height_out = len(range(starting_height, ending_height, stride_height))
         width_out = len(range(starting_width, ending_width, stride_width))
 
         return tuple(instance_kernel_positions), height_out, width_out
+
+    def __prepare_input_for_kernels(self, x: Tensor) -> Tensor:
+        """
+        Prepares input tensor for efficient application of the convolution kernels:
+
+        1. Calculate _Kernel Positions_, which are the slices within the input tensor where a kernel will be applied.
+        2. Extract the subtensors from the input tensor corresponding to the cacluated kernel positions.
+        3. Concatenate and reshape the subtensors into a matrix for efficient kernel application. Each row in this tensor is a single kernel position.
+
+        Args:
+            x:  The input Tensor.
+                Expected shape: (N, in_channels, H, W) for batched input, or (in_channels, H, W) for single input.
+                                N:            Batch Size
+                                in_channels:  The number of input channels
+                                H:            Height of the input tensor
+                                W:            Width of the input tensor
+
+        Returns:
+            A Tensor ready for convolution kernel application (multiply by self._trainable_kernels)
+        """
+        # N: Batch Size (if provided with batch input).
+        # height_in: The height of each instance in the input tensor.
+        # width_in: The width of each instance in the input tensor.
+        N = None
+        if x.dim() == 4:
+            N, _, height_in, width_in = x.shape
+        elif x.dim() == 3:
+            _, height_in, width_in = x.shape
+        else:
+            raise ValueError(
+                "Incorrect shape: Either (N, in_channels, H, W) or (in_channels, H W)"
+            )
+
+        # Calculate the list of positions (slice objects) of a kernel over the input tensor.
+        kernel_positions, _, _ = self.__get_kernel_position_slices(
+            height_in, width_in, N
+        )
+
+        single_kernel_size = prod(self._single_kernel_shape)
+
+        # Prepare input data for kernel application.
+        # This step extracts the smaller sections from the input tensor, corresponding to the kernel positions calculated above.
+        # Each section is flattened into a 1D array, containing the values the kernel will multiply at that position.
+        flattened_input_features = []
+        for kernel_position in kernel_positions:
+            # Grab subtensor corresponding to the current kernel position.
+            subtensor = x.data[kernel_position]
+            # Flatten subtensor into single dimension.
+            flattened_subtensor = subtensor.reshape((single_kernel_size,))
+            # Add flattened subtensor into array.
+            flattened_input_features.append(flattened_subtensor)
+
+        # Concatenate all of the subtensors into a single matrix. Each row is a single kernel position.
+        flattened_input_features = TensorData.concatenate(
+            tensordatas=flattened_input_features, dim=0
+        )
+        if len(x.shape) == 4:
+            flattened_input_features.reshape_(
+                (
+                    N,
+                    len(kernel_positions) // N,
+                    prod(self._single_kernel_shape),
+                )  # Divide by N because kernel positions includes those for all N instances in the batch.
+            )
+        else:
+            flattened_input_features.reshape_(
+                (
+                    len(kernel_positions),
+                    prod(self._single_kernel_shape),
+                )  # Only single instance so N=1.
+            )
+
+        return Tensor(data=flattened_input_features)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Performs a 2D convolution over the input tensor.
+
+        Args:
+            x:  The input Tensor.
+                Expected shape: (N, in_channels, H, W) for batched input, or (in_channels, H, W) for single input.
+                                N:            Batch Size
+                                in_channels:  The number of input channels
+                                H:            Height of the input tensor
+                                W:            Width of the input tensor
+        """
+        # Calculate the expected dimensions of the tensor after applying the convolution operator.
+        expected_output_dimensions = self.get_expected_output_dimensions(x)
+        height_out, width_out = expected_output_dimensions[-2:]
+
+        # Prepare the input tensor for efficient kernel application.
+        conv_input_matrix = self.__prepare_input_for_kernels(x)
+
+        # Apply the kernels (perform the convolution operation) on the prepared input.
+        convolution_tensor = conv_input_matrix @ self._trainable_kernels
+        if self.bias:
+            convolution_tensor = convolution_tensor + self._trainable_bias
+
+        # Transpose the last two dimensions, then reshape them to match the expected output shape after convolution.
+        if len(convolution_tensor.shape) == 3:
+            N = x.shape[0]  # Batch Size.
+            convolution_tensor = convolution_tensor.permute(0, 2, 1)
+            convolution_tensor = convolution_tensor.reshape(
+                N, self.out_channels, height_out, width_out
+            )
+        else:
+            convolution_tensor = convolution_tensor.permute(1, 0)
+            convolution_tensor = convolution_tensor.reshape(
+                self.out_channels, height_out, width_out
+            )
+
+        return convolution_tensor
