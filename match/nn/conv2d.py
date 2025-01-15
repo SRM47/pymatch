@@ -294,7 +294,7 @@ class Conv2d(Module):
             convolution_tensor = convolution_tensor + self._trainable_bias
 
         # Transpose the last two dimensions, then reshape them to match the expected output shape after convolution.
-        if len(convolution_tensor.shape) == 3:
+        if len(x.shape) == 4:
             N = x.shape[0]  # Batch Size.
             convolution_tensor = convolution_tensor.permute(0, 2, 1)
             convolution_tensor = convolution_tensor.reshape(
