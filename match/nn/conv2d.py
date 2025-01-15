@@ -1,11 +1,9 @@
 from __future__ import annotations
-from typing import Optional
 
-import numpy as np
 import match
 
 from math import prod
-from match import Tensor, TensorData, use_numpy
+from match import Tensor, TensorData
 from .module import Module
 
 
