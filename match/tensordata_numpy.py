@@ -48,6 +48,14 @@ class TensorData(object):
             # If an ndarray is provided, use it.
             self._numpy_data = numpy_data
 
+    @staticmethod
+    def randn(shape: tuple[int] = None, generator=lambda: gauss(0, 1)) -> TensorData:
+        rng = np.random.default_rng(seed=47)
+        return TensorData(
+            *shape,
+            numpy_data=rng.random(shape),
+        )
+
     @property
     def shape(self) -> tuple[int]:
         """Returns the shape of the underlying ndarray"""
@@ -331,8 +339,13 @@ class TensorData(object):
 
         # Check shape compatibility (all dimensions except the concatenation dim must match)
         for i in range(1, len(tensordatas)):
-            if tensordatas[i].shape[:dim] + tensordatas[i].shape[dim + 1:] != tensordatas[0].shape[:dim] + tensordatas[0].shape[dim + 1:]:
-                raise ValueError("match.cat(): tensors must have the same shape, except along the concatenation dimension")
+            if (
+                tensordatas[i].shape[:dim] + tensordatas[i].shape[dim + 1 :]
+                != tensordatas[0].shape[:dim] + tensordatas[0].shape[dim + 1 :]
+            ):
+                raise ValueError(
+                    "match.cat(): tensors must have the same shape, except along the concatenation dimension"
+                )
 
         # Concatenate along the specified dimension.
         tensordata_numpy_arrays = [td._numpy_data for td in tensordatas]

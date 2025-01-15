@@ -58,6 +58,16 @@ class TensorData:
         self.__initialize_strides()
 
     @staticmethod
+    def randn(shape: tuple[int] = None, generator=lambda: gauss(0, 1)) -> TensorData:
+        if not shape:
+            return TensorData(value=generator())
+
+        rand_tensordata = TensorData(0)
+        rand_tensordata._data = [TensorData(value=generator()) for _ in range(prod(shape))]
+        rand_tensordata.reshape_(shape)
+        return rand_tensordata
+
+    @staticmethod
     def create_tensor_from_data(data: list, shape: tuple) -> TensorData:
         """_summary_
 

@@ -142,7 +142,7 @@ class Embedding(Module):
     # https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html
     def __init__(self, num_embeddings, embedding_dim):
         super().__init__()
-        self.embeddings = Tensor.randn(num_embeddings, embedding_dim)
+        self.embeddings = match.randn(num_embeddings, embedding_dim)
 
     def forward(self, x: Tensor): ...
 

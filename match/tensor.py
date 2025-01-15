@@ -4,13 +4,13 @@ from logging import info
 from math import prod
 from random import gauss
 from typing import Callable, List, Set
-import numpy as np
 
 from icecream import ic
 
 use_numpy = True  # False to use the python implementation of TensorData.
 
 if use_numpy:
+    import numpy as np
     from .tensordata_numpy import TensorData
 else:
     from .tensordata import TensorData
@@ -40,26 +40,6 @@ class Tensor:
 
     def __str__(self) -> str:
         return self.__repr__()
-
-    # TODO: Remove this
-    def randn(*shape, generator=lambda: gauss(0, 1)) -> Tensor:
-        if isinstance(shape[0], tuple):
-            shape = shape[0]
-
-        if use_numpy:
-            data = TensorData(
-                *shape,
-                numpy_data=np.random.default_rng().normal(0, 1, size=shape),
-            )
-            return Tensor(data=data)
-
-        if not shape:
-            return Tensor(TensorData(value=generator()))
-
-        rand_tensordata = TensorData(0)
-        rand_tensordata._data = [TensorData(value=generator()) for _ in range(prod(shape))]
-        rand_tensordata.reshape_(shape)
-        return Tensor(rand_tensordata)
 
     def backward(self) -> None:
         """Compute all gradients using backpropagation.

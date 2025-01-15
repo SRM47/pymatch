@@ -74,7 +74,7 @@ class Conv2d(Module):
         self._single_kernel_shape = (self.in_channels,) + kernel_size
         # Each column will be a single kernel, and we have out_channel columns.
         # The number of rows will be the number of elements in each kernel.
-        self._trainable_kernels: Tensor = Tensor.randn(
+        self._trainable_kernels: Tensor = match.randn(
             prod(self._single_kernel_shape), self.out_channels
         )
 
