@@ -4,6 +4,7 @@ from match.tensordata import TensorData
 from .base import BaseUnitTest
 import itertools
 from match import prod
+import operator
 from typing import Callable
 from random import gauss
 
@@ -25,9 +26,7 @@ class TestTensorBase(BaseUnitTest):
         torch_tensor.requires_grad = False
         return torch_tensor
 
-    def generate_tensor_pair(
-        self, shape: tuple[int] = None, fill_value: int | float | Callable = None
-    ):
+    def generate_tensor_pair(self, shape: tuple[int] = None, fill_value: int | float | Callable = None):
         """Generates a random TensorBase and its PyTorch equivalent.
 
         Args:
@@ -319,5 +318,146 @@ class TestTensorBase(BaseUnitTest):
             self.assertRaises(ValueError, lambda: match_tensor.broadcast(2, 2, 1, 3, 3))
             self.assertRaises(RuntimeError, lambda: match_tensor.broadcast(3, 3))
 
-    # TODO: Add tests for the following inplace tensoroperations: abs_, cos_, sin_, tan_, apply_, eq_, log_, exp_, pow_, fill_, sigmoid_, tanh_, max, min, 
-    # TODO: Add tests for the following inter-tensor operations (tb1 `op` tb2): lt, ge, leq, geq, eq, +, -, /, * (dot), prod, 
+    def test_abs(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        self.almost_equal(match_tensorbase.abs(), torch_tensor.abs())
+
+    def test_trig(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        with self.subTest(msg="cos"):
+            self.almost_equal(match_tensorbase.cos(), torch_tensor.cos())
+
+        with self.subTest(msg="sin"):
+            self.almost_equal(match_tensorbase.sin(), torch_tensor.sin())
+
+        with self.subTest(msg="tan"):
+            self.almost_equal(match_tensorbase.tan(), torch_tensor.tan())
+    
+    def test_log(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:abs(guass(0,2)))
+        with self.subTest(msg="ln"):
+            self.almost_equal(match_tensorbase.log(), torch_tensor.log())
+
+        with self.subTest(msg="log2"):
+            self.almost_equal(match_tensorbase.log2(), torch_tensor.log10())
+
+        with self.subTest(msg="log10"):
+            self.almost_equal(match_tensorbase.log2(), torch_tensor.log10())
+
+        with self.subTest(msg="log_negative_number"):
+            match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:-abs(guass(0,2)))
+            self.almost_equal(match_tensorbase.log2(), torch_tensor.log10())
+    
+    def test_exp(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        self.almost_equal(match_tensorbase.exp(), torch_tensor.exp())
+
+    def test_pow(self):
+        with self.subTest(msg="positive_base"):
+            match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:abs(guass(0,1)))
+            with self.subTest(msg="positive_exponent"):
+                self.almost_equal(match_tensorbase.pow(2), torch_tensor.pow(2))
+
+            with self.subTest(msg="negative_exponent"):
+                self.almost_equal(match_tensorbase.pow(-1), torch_tensor.pow(-1))
+
+            with self.subTest(msg="decimal_exponent"):
+                self.almost_equal(match_tensorbase.pow(-0.5), torch_tensor.pow(-0.5))
+
+        with self.subTest(msg="negative_base"):
+            match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:-abs(guass(0,1)))
+            with self.subTest(msg="positive_exponent"):
+                self.almost_equal(match_tensorbase.pow(2), torch_tensor.pow(2))
+
+            with self.subTest(msg="negative_exponent"):
+                self.almost_equal(match_tensorbase.pow(-1), torch_tensor.pow(-1))
+
+            with self.subTest(msg="decimal_exponent"):
+                self.almost_equal(match_tensorbase.pow(-0.5), torch_tensor.pow(-0.5))
+         
+    def test_fill(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        match_tensorbase.fill_(5)
+        torch_tensor.fill_(5)
+        self.almost_equal(match_tensorbase, torch_tensor)
+
+    def test_sigmoid(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        self.almost_equal(match_tensorbase.sigmoid(), torch_tensor.sigmoid())
+
+    def test_tanh(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        self.almost_equal(match_tensorbase.tanh(), torch_tensor.tanh())
+    
+    def test_relu(self):
+        match_tensorbase, torch_tensor = self.generate_tensor_pair((2, 3, 4), fill_value= lambda:guass(0,1))
+        self.almost_equal(match_tensorbase.relu(), torch_tensor.relu())
+
+    def test_operators_broadcast_success(self):
+        operators_to_test = {
+            "lt": operator.lt,
+            "le": operator.le,
+            "eq": operator.eq,
+            "ne": operator.ne,
+            "ge": operator.ge,
+            "gt": operator.gt,
+            "add": operator.add,
+            "sub": operator.sub,
+            "mul": operator.mul,
+            "neg": operator.neg,
+            "truediv": operator.truediv
+        }
+        for msg, op in operators_to_test.items():
+            with self.subTest(msg=msg):
+                with self.subTest(msg="nd_nd_same_shape"):
+                    match_tensorbase1, torch_tensor1 = self.generate_tensor_pair((2,3,4), fill_value=lambda:gauss(0,5))
+                    match_tensorbase2, torch_tensor2 = self.generate_tensor_pair((2,3,4), fill_value=lambda:gauss(0,5))
+                    self.almost_equal(op(match_tensorbase1, match_tensorbase2), op(torch_tensor1, torch_tensor2))
+
+                with self.subTest(msg="nd_nd_broadcastable_shape"):
+                    match_tensorbase1, torch_tensor1 = self.generate_tensor_pair((2,3,4), fill_value=lambda:gauss(0,5))
+                    match_tensorbase2, torch_tensor2 = self.generate_tensor_pair((1,3,1), fill_value=lambda:gauss(0,5))
+                    self.almost_equal(op(match_tensorbase1, match_tensorbase2), op(torch_tensor1, torch_tensor2))
+
+                with self.subTest(msg="nd_singleton"):
+                    match_tensorbase_singleton1, torch_tensor_singleton1 = self.generate_tensor_pair((), fill_value=lambda:gauss(0,5))
+                    match_tensorbase2, torch_tensor2 = self.generate_tensor_pair((2,3,4), fill_value=lambda:gauss(0,5))
+                    self.almost_equal(op(match_tensorbase_singleton1, match_tensorbase2), op(torch_tensor_singleton1, torch_tensor2))
+                    self.almost_equal(op(match_tensorbase2, match_tensorbase_singleton1), op(torch_tensor2, torch_tensor_singleton1))
+
+                with self.subTest(msg="nd_scalar"):
+                    match_tensorbase, torch_tensor = self.generate_tensor_pair((2,3,4), fill_value=lambda:gauss(0,5))
+                    self.almost_equal(op(match_tensorbase, 1.47), op(torch_tensor, 1.47))
+                    self.almost_equal(op(-3.47, match_tensorbase), op(-3.47, torch_tensor))
+
+                with self.subTest(msg="singleton_singleton"):
+                    match_tensorbase_singleton1, torch_tensor_singleton1 = self.generate_tensor_pair((), fill_value=lambda:gauss(0,5))
+                    match_tensorbase_singleton2, torch_tensor_singleton2 = self.generate_tensor_pair((), fill_value=lambda:gauss(2,5))
+                    self.almost_equal(op(match_tensorbase_singleton1, match_tensorbase_singleton2), op(torch_tensor_singleton1, torch_tensor_singleton2))
+
+                with self.subTest(msg="singleton_scalar"):
+                    match_tensorbase_singleton, torch_tensor_singleton = self.generate_tensor_pair((), fill_value=lambda:gauss(2,5))
+                    self.almost_equal(op(match_tensorbase_singleton, 1.47), op(torch_tensor_singleton, 1.47))
+                    self.almost_equal(op(-3.47, match_tensorbase_singleton), op(-3.47, torch_tensor_singleton))
+
+    def test_operators_broadcast_failure(self):
+        operators_to_test = {
+            "lt": operator.lt,
+            "le": operator.le,
+            "eq": operator.eq,
+            "ne": operator.ne,
+            "ge": operator.ge,
+            "gt": operator.gt,
+            "add": operator.add,
+            "sub": operator.sub,
+            "mul": operator.mul,
+            "neg": operator.neg,
+            "truediv": operator.truediv
+        }
+        for msg, op in operators_to_test.items():
+            with self.subTest(msg=msg):
+                match_tensorbase1, _ = self.generate_tensor_pair((2,3,4), fill_value=0)
+                match_tensorbase2, _ = self.generate_tensor_pair((2,3,3), fill_value=0)
+                self.assertRaises(RuntimeError, op(match_tensorbase1, match_tensorbase2))
+                
+                
