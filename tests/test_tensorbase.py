@@ -3,11 +3,10 @@ import torch
 from match.tensordata import TensorData
 from .base import BaseUnitTest
 import itertools
-from match import prod
+from match import prod, TensorBase
 import operator
 from typing import Callable
 from random import gauss
-
 
 class TestTensorBase(BaseUnitTest):
     def to_tensor(self, match_tensorbase) -> torch.Tensor:
@@ -53,7 +52,7 @@ class TestTensorBase(BaseUnitTest):
         self.assertEqual(match_tensorbase.stride(), torch_tensor.stride())
 
     def test_tensorbase_creation(self):
-        with self.subTest(msg="valid_nd")
+        with self.subTest(msg="valid_nd"):
             match_tensorbase, torch_tensor = self.generate_tensor_pair(
                 shape=(3, 4, 5, 6), fill_value=3
             )
@@ -140,7 +139,7 @@ class TestTensorBase(BaseUnitTest):
             self.assertEqual(TensorBase(shape=(2, 3, 4, 5))[0, 0, 0, 0].item(), 0)
 
         with self.subTest(msg="oob_failure"):
-            self.assertRaises(IndexError, lambda: TensorData(shape=(2, 3, 4, 5))[2, 0, 0, 0])
+            self.assertRaises(IndexError, lambda: TensorBase(shape=(2, 3, 4, 5))[2, 0, 0, 0])
 
     def test_setitem_single_value_index(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 3, 3), fill_value = lambda: gauss(0,1))
@@ -191,14 +190,14 @@ class TestTensorBase(BaseUnitTest):
             self.assertEqual(tensor._raw_data(), [47,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,47])
 
         with self.subTest(msg="oob_failure"):
-            tensor = TensorData(2, 3, 4, 5)
+            tensor = TensorBase(shape=(2, 3, 4, 5))
 
             def setitem_helper():
                 tensor[1, 2, 3, 5] = 47.0
 
             self.assertRaises(IndexError, setitem_helper)
 
-    def test_setitem_single_tensordata(self):
+    def test_setitem_single_tensorbase(self):
         tensor = TensorBase(shape=(2, 3, 4), fill_value=0)
         tensor[0, 0, 0] = TensorBase(shape=(), fill_value=47)
         self.assertEqual(tensor._raw_data(), [47,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
