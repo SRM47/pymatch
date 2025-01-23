@@ -282,30 +282,91 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj)
     return Py_BuildValue("s", str_buffer);
 }
 
-// clang-format off
 // NOTE: disabling formatter due to PyVarObject_HEAD_INIT macro
 static PyTypeObject PyTensorBaseType = {
-    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "match.tensorbase.TensorBase",
-    .tp_doc = PyDoc_STR("TODO: docs"),
-    // .tp_repr = PyTensorBase_str,
-    .tp_str = PyTensorBase_str,
+    PyVarObject_HEAD_INIT(NULL, 0),
+    .tp_name = "match.tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
     .tp_basicsize = sizeof(PyTensorBase),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
-    .tp_init = (initproc)PyTensorBase_init,
+    .tp_itemsize = 0, /* For allocation */
+
+    /* Methods to implement standard operations */
     .tp_dealloc = (destructor)PyTensorBase_dealloc,
-    // .tp_members = PyTensorBase_members,
-    .tp_methods = PyTensorBase_methods,
-    .tp_getset = PyTensorBase_getset,
-    // TODO: .tp_getattr/tp_setattr?
-    // TODO: .tp_getattro/tp_setattro?
-    // TODO: .tp_richcompare?
-    // TODO: .tp_iter/tp_iternext?
+    // .tp_vectorcall_offset = 0,
+    // .tp_getattr = 0,
+    // .tp_setattr = 0,
+    // .tp_as_async = 0, /* formerly known as tp_compare (Python 2)
+                                    or tp_reserved (Python 3) */
+    // .tp_repr = 0,
+
+    /* Method suites for standard classes */
     .tp_as_number = &PyTensorBase_as_number,
+    // .tp_as_sequence = 0,
+    // .tp_as_mapping = 0,
+
+    /* More standard operations (here for binary compatibility) */
+    // .tp_hash = 0,
+    // .tp_call = 0,
+    .tp_str = PyTensorBase_str,
+    // .tp_getattro = 0,
+    // .tp_setattro = 0,
+
+    /* Functions to access object as input/output buffer */
+    // .tp_as_buffer = 0,
+
+    /* Flags to define presence of optional/expanded features */
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+
+    .tp_doc = PyDoc_STR("TODO: docs"), /* Documentation string */
+
+    /* Assigned meaning in release 2.0 */
+    /* call function for all accessible objects */
+    // .tp_traverse = 0,
+
+    /* delete references to contained objects */
+    // .tp_clear = 0,
+
+    /* Assigned meaning in release 2.1 */
+    /* rich comparisons */
+    // .tp_richcompare = 0,
+
+    /* weak reference enabler */
+    // .tp_weaklistoffset = 0,
+
+    /* Iterators */
+    // .tp_iter = 0,
+    // .tp_iternext = 0,
+
+    /* Attribute descriptor and subclassing stuff */
+    .tp_methods = PyTensorBase_methods,
+    // .tp_members = 0,
+    .tp_getset = PyTensorBase_getset,
+    // Strong reference on a heap type, borrowed reference on a static type
+    // .tp_base = 0,
+    // .tp_dict = 0,
+    // .tp_descr_get = 0,
+    // .tp_descr_set = 0,
+    // .tp_dictoffset = 0,
+    .tp_init = (initproc)PyTensorBase_init,
+    // .tp_alloc = 0,
+    .tp_new = PyType_GenericNew,
+    // .tp_free = 0,  /* Low-level free-memory routine */
+    // .tp_is_gc = 0, /* For PyObject_IS_GC */
+    // .tp_bases = 0,
+    // .tp_mro = 0, /* method resolution order */
+    // .tp_cache = 0,
+    // .tp_subclasses = 0,
+    // .tp_weaklist = 0,
+    // .tp_del = 0,
+
+    /* Type attribute cache version tag. Added in version 2.6 */
+    // .tp_version_tag = 0,
+
+    // .tp_finalize = 0,
+    // .tp_vectorcall = 0,
+
+    /* bitset of which type-watchers care about this type */
+    // .tp_watched = 0,
 };
-// clang-format on
 
 // ----------------------------------------------------------------
 // ▗▖ ▗▖       █  ▗▄▖    █         █
