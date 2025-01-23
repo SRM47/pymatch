@@ -32,14 +32,14 @@ typedef struct _TensorBase
 
 static int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim);
 static void TensorBase_dealloc(TensorBase *td);
-static int TensorBase_copy_only_allocate(TensorBase *in, TensorBase *out);
+static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out);
 
 /********************************************************* 
  *                        Utility                        *
  *********************************************************/
 
 static inline int TensorBase_is_singleton(TensorBase *t);
-static inline int TensorBase_same_shape(ShapeArray a_shape, ShapeArray b_shape);
+static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape);
 
 /********************************************************* 
  *                     String Methods                    *
@@ -63,16 +63,17 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
 static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar));
 static int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar));
 
-static int TensorBase_unary_op_inplace(TensorBase *a, scalar (*op)(scalar));
-static int TensorBase_unary_op(TensorBase *a, TensorBase *out, scalar (*op)(scalar));
+static int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar));
+static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar));
 
 static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out);
-static int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out);
+static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out);
 
-static int TensorBase_max(TensorBase *in, long dim, int keepdim, TensorBase *out);
-static int TensorBase_min(TensorBase *in, long dim, int keepdim, TensorBase *out);
-static int TensorBase_sum(TensorBase *in, long dim, int keepdim, TensorBase *out);
-static int TensorBase_mean(TensorBase *in, long dim, int keepdim, TensorBase *out);
+/********************************************************* 
+ *                      Aggregation                      *
+ *********************************************************/
+
+static int TensorBase_aggregate(TensorBase *in, long dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar*, long));
 
 /********************************************************* 
  *                     Manipulation                      *
