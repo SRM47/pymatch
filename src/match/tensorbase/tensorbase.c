@@ -213,7 +213,7 @@ static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArr
         }
         else
         {
-            // Incompatible shapes
+            // Incompatible shapes.
             return -1;
         }
     }
@@ -221,10 +221,31 @@ static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArr
     return 0;
 }
 
+
+static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int broadcast_ndim)
+{
+    if (in->ndim > broadcast_ndim)
+    {
+        return -1;
+    }
+
+    // Broadcast dimensions
+    long in_index = in->ndim - 1;
+    long out_index = broadcast_ndim - 1;
+
+    for (; in_index >= 0; out_index--, in_index--)
+    {
+        if (in->shape[in_index] == 1 || broadcast_shape[out_index] == 1 || in->shape[in_index] == broadcast_shape[out_index])
+        {
+            continue;
+        }
+        return -1;
+    }
+
+    return 0;
+}
 // TODO: Implement
-static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim) { return -1; }
-// TODO: Implement
-static int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out) { return -1; }
+static int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out) { return -2; }
 
 /*********************************************************
  *                    Linear Algebra                     *
@@ -363,8 +384,10 @@ static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(sca
     return 0;
 }
 
+// TODO: Implement
 static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out)
 {
+    return -2;
     // TODO: relax the requirement for 2D tensors
     if (a->ndim != 2 || b->ndim != 2)
     {
@@ -382,8 +405,11 @@ static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase 
     return 1;
 }
 
-static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
+// TODO: Implement
+static int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
+    return -2;
+
     for (long i = 0; i < a->shape[0]; i++)
     {
         for (long j = 0; j < b->shape[1]; j++)
@@ -403,16 +429,16 @@ static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase 
  *********************************************************/
 
 // TODO: Implement
-static int TensorBase_aggregate(TensorBase *in, long dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar *, long)) { return -1; }
+static int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar *, long)) { return -2; }
 
 /*********************************************************
  *                     Manipulation                      *
  *********************************************************/
 
-static int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -1; }
-static int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -1; }
+static int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -2; }
+static int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -2; }
 
-static int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -1; }
-static int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -1; }
+static int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -2; }
+static int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
 
-static int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -1; }
+static int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }

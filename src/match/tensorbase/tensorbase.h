@@ -73,7 +73,7 @@ static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase 
  *                      Aggregation                      *
  *********************************************************/
 
-static int TensorBase_aggregate(TensorBase *in, long dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar*, long));
+static int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar*, long));
 
 /********************************************************* 
  *                     Manipulation                      *

@@ -2,7 +2,7 @@
 #include <Python.h>
 #include <stddef.h>
 
-#include "tensorbase.c"
+#include "tensorbase.h"
 
 // https://getcode.substack.com/p/fun-and-hackable-tensors-in-rust
 // https://jessicastringham.net/2017/12/31/stride-tricks/
