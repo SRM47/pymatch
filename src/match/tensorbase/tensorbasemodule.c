@@ -400,23 +400,19 @@ static PyObject *PyTensorBase_add_tensor_scalar(PyTensorBase *t, scalar s)
 
 static PyObject *PyTensorBase_add_tensor_tensor(PyTensorBase *a, PyTensorBase *b)
 {
-    TensorBase a_temp;
-    TensorBase b_temp;
-
-    if (TensorBase_broadcast_for_binop(&a->tb, &b->tb, &a_temp, &b_temp) < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Incompatible shapes for addition.");
-        return NULL;
-    }
-
     PyTensorBase *result = PyTensorBase_create(a_temp.shape);
     if (!result)
     {
         // NOTE: error string set in PyTensorBase_create
         return NULL;
     }
-
-    TensorBase_add_tensor_tensor(&a_temp, &b_temp, &result->tb);
+    scalar (*add)(scalar, scalar) = [](scalar a, scalar b)
+    { return a + b; };
+    if (TensorBase_binary_op_tensorbase_tensorbase(&a->tb, &b->tb, &result->tb, add) == -1)
+    {
+        // NOTE: error string set in PyTensorBase_create
+        return NULL;
+    }
     return (PyObject *)result;
 }
 

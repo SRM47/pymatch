@@ -1,47 +1,4 @@
-#include <stdlib.h>
-
-// TODO:
-// - Consider
-//      - itemsize, nbytes, dtype
-// - Methods
-//      - item
-//      - reshape, view
-//      - broadcast (with alloc?)
-//      - unbroadcast/reduce
-//      - sum, mean, max, min, etc.
-//      - sigmoid, relu, etc.
-//      - add, sub, mul, div, etc.
-//      - matmul, dot, etc.
-//      - in-place operators
-// - info function for debugging
-
-// [Reshaping PyTorch Tensors - DZone](https://dzone.com/articles/reshaping-pytorch-tensors)
-// MATLAB Coder
-// - https://www.mathworks.com/help/coder/ug/generate-code-with-implicit-expansion-enabled.html
-// - https://www.mathworks.com/help/matlab/matlab_prog/compatible-array-sizes-for-basic-operations.html
-// - https://www.mathworks.com/help/simulink/slref/coder.varsize.html
-
-// - https://github.com/fulcrum-so/ziggy-pydust
-
-// ----------------------------------------------------------------
-//   ▄▄             ▄▄   █
-//  █▀▀▌           ▐▛▀   ▀
-// ▐▛    ▟█▙ ▐▙██▖▐███  ██   ▟█▟▌
-// ▐▌   ▐▛ ▜▌▐▛ ▐▌ ▐▌    █  ▐▛ ▜▌
-// ▐▙   ▐▌ ▐▌▐▌ ▐▌ ▐▌    █  ▐▌ ▐▌
-//  █▄▄▌▝█▄█▘▐▌ ▐▌ ▐▌  ▗▄█▄▖▝█▄█▌
-//   ▀▀  ▝▀▘ ▝▘ ▝▘ ▝▘  ▝▀▀▀▘ ▞▀▐▌
-//                           ▜█▛▘
-// ----------------------------------------------------------------
-
-// To make it easier to change the data type later
-typedef double scalar;
-
-// NOTE: Assume maximum rank of 8
-#define MAX_RANK 8
-typedef long IndexArray[MAX_RANK];
-typedef long ShapeArray[MAX_RANK];
-typedef long StrideArray[MAX_RANK];
+#include "tensorbase.h"
 
 // ----------------------------------------------------------------
 // ▗▖ ▗▖       █  ▗▄▖    █         █
@@ -122,88 +79,65 @@ randn_pair randn(scalar mu, scalar sigma)
 //   ▀   ▝▀▀ ▝▘ ▝▘ ▀▀▀  ▝▀▘  ▀        ▝▀▀▀  ▀▀▝▘ ▀▀▀  ▝▀▀
 // ----------------------------------------------------------------
 
-//
-// A plain-c tensor data structure.
-//
-// This data structure lacks many of the features of a full-fledged tensor library,
-// for example, it does not support:
-// - multiple data types
-// - GPU acceleration
-// - SIMD acceleration
-// - automatic differentiation (this is left to the Python interface)
-//
-
-// https://numpy.org/doc/stable/reference/arrays.ndarray.html
-// Data structure for a tensor or single tensor item
-// For a single tensor item
-// - numel = 1
-// - ndim = 0
-// - shape = []
-// - strides = ()
-// - data: pointer to item (TODO: just store in pointer?)
-// For a vector (1D tensor)
-// - numel = length of data
-// - ndim = 1
-// - shape = [length of data]
-// - strides = (1,)
-// - data: pointer to data
-typedef struct
+static int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 {
-    long numel;          // Number of elements (length of data array)
-    long ndim;           // Number of dimensions
-    ShapeArray shape;    // Shape of tensor
-    StrideArray strides; // Strides of tensor
-    scalar *data;        // Tensor data
-} TensorBase;
-// TODO: read-only for views of data?
+    if (ndim > MAX_RANK || ndim < 0)
+    {
+        return -1;
+    }
 
-static int TensorBase_init(TensorBase *td, ShapeArray shape)
-{
+    // Initialize Tensorbase instance variables.
     td->numel = 1;
-    td->ndim = 0;
-
-    // NOTE: not necessary, but good for documentation
-    memset(td->shape, 0, sizeof(ShapeArray));
+    td->ndim = ndim;
+    memset(td->shape, -1, sizeof(ShapeArray));
     memset(td->strides, 0, sizeof(StrideArray));
+    // Allocate the memory, but do not initialize it's values.
+    td->data = (scalar *)malloc(td->numel * sizeof(scalar));
+    if (td->data == NULL)
+    {
+        // Memory error.
+        return -1;
+    }
 
-    for (long i = 0; i < MAX_RANK; i++)
+    // Calculate Tensorbase shape and number of elements.
+    long numel_for_stride = 1;
+    for (int i = 0; i < ndim; i++)
     {
         long dim = shape[i];
-        // printf("loop: %d, dim: %ld, numel: %ld, ndim: %ld, shape: (%d, %d)\n", i, dim, td->numel, td->ndim, td->shape[0], td->shape[1]);
-        if (dim == 0)
-        {
-            break;
-        }
         if (dim < 0)
         {
-            // All dimensions must be positive (zero indicates no-dimension)
+            // All dimensions must be >= 0 (-1 indicates no-dimension).
             return -1;
         }
         td->numel *= dim;
-        td->ndim += 1;
         td->shape[i] = dim;
-
-        // printf("loop: %d, dim: %ld, numel: %ld, ndim: %ld, shape: (%d, %d)\n", i, dim, td->numel, td->ndim, td->shape[0], td->shape[1]);
+        if (dim > 0)
+        {
+            numel_for_stride *= dim;
+        }
     }
 
-    long stride = td->numel;
-    for (long i = 0; i < td->ndim; i++)
+    // Calculate Tensorbase strides.
+    long stride = numel_for_stride;
+    for (long i = 0; i < ndim; i++)
     {
-        stride /= td->shape[i];
+        long dim = shape[i];
+        if (dim > 0)
+        {
+            stride /= dim;
+        }
         td->strides[i] = stride;
     }
 
-    // NOTE: not initializing values
-    td->data = malloc(td->numel * sizeof(scalar));
-
-    // printf("init:: numel: %ld, data: %p, shape: (%d, %d)\n", td->numel, td->data, td->shape[0], td->shape[1]);
-
-    return td->data == NULL ? -1 : 0;
+    return 0;
 }
 
 static void TensorBase_dealloc(TensorBase *td)
 {
-    free(td->data);
+    if (td->data != NULL)
+    {
+        free(td->data);
+    }
     td->data = NULL;
     td->numel = 0;
     td->ndim = 0;
@@ -211,6 +145,7 @@ static void TensorBase_dealloc(TensorBase *td)
     memset(td->strides, 0, sizeof(StrideArray));
 }
 
+// TODO: Turn into stringify
 void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size)
 {
     int bytes_written = snprintf(buffer, buffer_size, "[");
@@ -225,53 +160,9 @@ void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size)
         buffer += bytes_written;
     }
 
-    // TODO: check for buffer overflow
+    // TODO: Check for buffer overflow.
     snprintf(buffer, buffer_size, "]");
 }
-
-void TensorBase_randn(TensorBase *td, scalar mu, scalar sigma)
-{
-    for (long i = 0; i < td->numel; i += 2)
-    {
-        randn_pair pair = randn(mu, sigma);
-        td->data[i] = pair.a;
-        if (i + 1 < td->numel)
-        {
-            td->data[i + 1] = pair.b;
-        }
-    }
-}
-
-// // TODO: turn into stringify
-// void print_tensor(TensorBase *td, long current_dim, IndexArray indices)
-// {
-//     printf("[");
-//     if (current_dim == td->ndim - 1)
-//     {
-//         // long index = TensorBase_indices_to_index(td, indices);
-//         long index = indices_to_index(indices, td->strides, td->ndim);
-//         print_vector(&td->data[index], td->shape[current_dim]);
-//     }
-//     else
-//     {
-//         for (long dim = 0; dim < td->shape[current_dim]; dim++)
-//         {
-//             IndexArray new_indices = {0};
-//             memcpy(new_indices, indices, sizeof(IndexArray));
-//             new_indices[current_dim] = dim;
-//             print_tensor(td, current_dim + 1, new_indices);
-//         }
-//     }
-//     printf("] ");
-// }
-
-// // TODO: change to accept output pointer?
-// static void TensorBase_stringify(TensorBase *td)
-// {
-//     IndexArray indices = {0};
-//     print_tensor(td, 0, indices);
-//     printf("\n");
-// }
 
 // ----------------------------------------------------------------
 // ▗▄▄▖                   ▗▖                      █
@@ -285,7 +176,7 @@ void TensorBase_randn(TensorBase *td, scalar mu, scalar sigma)
 // ----------------------------------------------------------------
 
 // Fill-in the shape and strides of the (temporary) output tensors
-static long TensorBase_broadcast_for_binop(TensorBase *a_in, TensorBase *b_in, TensorBase *a_out, TensorBase *b_out)
+static int TensorBase_broadcast_for_binop(TensorBase *a_in, TensorBase *b_in, TensorBase *a_out, TensorBase *b_out)
 {
     a_out->numel = a_in->numel;
     b_out->numel = b_in->numel;
@@ -335,6 +226,7 @@ static long TensorBase_broadcast_for_binop(TensorBase *a_in, TensorBase *b_in, T
     }
 
     // Set stride of (temporary) tensors (use 0 for dimensions of size 1)
+    // TODO: Handle when shape[i] == 0.
     long a_stride = a_out->numel;
     long b_stride = b_out->numel;
 
@@ -361,7 +253,44 @@ static long TensorBase_broadcast_for_binop(TensorBase *a_in, TensorBase *b_in, T
     // printf("a_out->numel: %ld, b_out->numel: %ld\n", a_out->numel, b_out->numel);
     // printf("a_out->strides: [%ld, %ld], b_out->strides: [%ld, %ld]\n", a_out->strides[0], a_out->strides[1], b_out->strides[0], b_out->strides[1]);
 
-    return 1;
+    return 0;
+}
+
+static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArray broadcast_shape, int *broadcast_ndim)
+{
+    // Initialize broadcast_shape with -1 to indicate dimensions that haven't been determined yet.
+    memset(broadcast_shape, -1, MAX_RANK * sizeof(long));
+
+    // Determine the maximum rank (number of dimensions)
+    *broadcast_ndim = max_long(a->ndim, b->ndim);
+
+    // Broadcast dimensions
+    long a_index = a->ndim - 1;
+    long b_index = b->ndim - 1;
+    long out_index = *broadcast_ndim - 1;
+
+    for (; out_index >= 0; out_index--, a_index--, b_index--)
+    {
+        if ((a_index >= 0 && a->shape[a_index] == 1) || (a_index < 0 && b_index >= 0))
+        {
+            broadcast_shape[out_index] = b->shape[b_index];
+        }
+        else if ((b_index >= 0 && b->shape[b_index] == 1) || (b_index < 0 && a_index >= 0))
+        {
+            broadcast_shape[out_index] = a->shape[a_index];
+        }
+        else if (a->shape[a_index] == b->shape[b_index])
+        {
+            broadcast_shape[out_index] = a->shape[a_index];
+        }
+        else
+        {
+            // Incompatible shapes
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 // ----------------------------------------------------------------
@@ -374,6 +303,220 @@ static long TensorBase_broadcast_for_binop(TensorBase *a_in, TensorBase *b_in, T
 // ▝▀▀▀▘▝▀▀▀▘▝▘ ▝▘▝▘ ▝▘  ▀▀  ▞▀▐▌
 //                           ▜█▛▘
 // ----------------------------------------------------------------
+static inline int TensorBase_is_singleton(TensorBase *t)
+{
+    return t->ndim == 0 && t->numel == 1;
+}
+
+static int TensorBase_copy_only_allocate(TensorBase *a, TensorBase *out)
+{
+    if (out->data == NULL)
+    {
+        out->data = (scalar *)malloc(a->numel * sizeof(scalar));
+        if (out->data == NULL)
+        {
+            return -1;
+        }
+    }
+    out->numel = a->numel;
+    out->ndim = a->ndim;
+    memcpy(out->shape, a->shape, sizeof(a->shape));
+    memcpy(out->strides, a->strides, sizeof(a->strides));
+    return 0;
+}
+
+static inline int TensorBase_same_shape(ShapeArray a_shape, ShapeArray b_shape)
+{
+    return memcmp(a_shape, b_shape, MAX_RANK);
+}
+
+/*
+
+self_coordinates = [0] * len(
+            self.shape
+        )  # Initialize a list to store the translated coordinates.
+
+        # Iterate over the dimensions of the existing tensor in reverse order.
+        for existing_dimension_index in range(len(self.shape) - 1, -1, -1):
+            # If the shape at the current index of the existing tensor is 1, set the coordinate to 0 in that dimension.
+            # Otherwise, use the corresponding coordinate from the new tensor coordinates.
+            if self.shape[existing_dimension_index] == 1:
+                self_coordinates[existing_dimension_index] = 0
+            else:
+                # Calculate the index in the new tensor coordinates corresponding to the current dimension of the existing tensor.
+                new_tensor_dimension_index = (
+                    existing_dimension_index
+                    + len(new_tensor_coordinates)
+                    - len(self.shape)
+                )
+                self_coordinates[existing_dimension_index] = new_tensor_coordinates[
+                    new_tensor_dimension_index
+                ]
+
+        return tuple(
+            self_coordinates
+        )  # Return the translated coordinates of the existing tensor.
+
+        // Convert a linear index to a multi-dimensional index
+// NOTE: this function does not check for out-of-bounds indices
+static void index_to_indices(long index, ShapeArray shape, long ndim, IndexArray out)
+{
+    for (long i = ndim - 1; i >= 0; i--)
+    {
+        out[i] = index % shape[i];
+        index /= shape[i];
+    }
+}
+
+// Convert a multi-dimensional index to a linear index
+// NOTE: this function does not check for out-of-bounds indices
+static long indices_to_index(IndexArray indices, StrideArray strides, long ndim)
+{
+    long index = 0;
+    for (long i = 0; i < ndim; i++)
+    {
+        index += indices[i] * strides[i];
+    }
+    return index;
+}
+
+*/
+
+// a `op` b
+static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, scalar (*op)(scalar, scalar))
+{
+    // Check if a is a singleton.
+    if (TensorBase_is_singleton(a))
+    {
+        scalar s = *a->data;
+        return TensorBase_binary_op_scalar_tensorbase(b, s, out, op);
+    }
+
+    // Check if b is a singleton.
+    if (TensorBase_is_singleton(b))
+    {
+        scalar s = *b->data;
+        return TensorBase_binary_op_tensorbase_scalar(a, s, out, op);
+    }
+
+    // Check if the two tensorbase structures don't have the same dimensions
+    if (Tensorbase_same_shape(a->shape, b->shape))
+    {
+        // They have the same shape.
+        if (TensorBase_copy_only_allocate(a, out) == -1)
+        {
+            return -1;
+        }
+        for (long i = 0; i < out->numel; i++)
+        {
+            out->data[i] = op(a->data[i], a->data[i]);
+        }
+    }
+    else
+    {
+        // They don't have the same shape must *attempt to* broadcast.
+
+        ShapeArray broadcast_shape;
+        int broadcast_ndim;
+        if (TensorBase_get_broadcast_shape(a, b, broadcast_shape, &broadcast_ndim) == -1)
+        {
+            // Incompatible broadcasting shapes.
+            return -1;
+        }
+
+        if (TensorBase_init(out, broadcast_shape, broadcast_ndim) == -1)
+        {
+            return -1;
+        }
+
+        for (long broadcast_index = 0; broadcast_index < out->numel; broadcast_index++)
+        {
+            // Translate from broadcast data index to a and b data index.
+            long a_index = 0;
+            long b_index = 0;
+
+            long a_broadcast_dim_offset = out->ndim - a->ndim;
+            long b_broadcast_dim_offset = out->ndim - b->ndim;
+
+            for (int broadcast_dim_index = out->ndim - 1; broadcast_dim_index >= 0; broadcast_dim_index--)
+            {
+                long a_dim = broadcast_dim_index - a_broadcast_dim_offset;
+                long b_dim = broadcast_dim_index - b_broadcast_dim_offset;
+
+                long broadcast_shape_at_curr_dim = broadcast_index % out->shape[broadcast_dim_index];
+                broadcast_index /= out->shape[broadcast_dim_index];
+
+                if (a_dim >= 0 && a->shape[a_dim] > 1)
+                {
+                    a_index += broadcast_shape_at_curr_dim * a->strides[a_dim];
+                }
+
+                if (b_dim >= 0 && b->shape[b_dim] > 1)
+                {
+                    b_index += broadcast_shape_at_curr_dim * b->strides[b_dim];
+                }
+            }
+
+            out->data[broadcast_index] = op(a->data[a_index], b->data[b_index]);
+        }
+    }
+
+    return 0;
+}
+
+// tensorbase `op` scalar
+static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
+{
+    if (TensorBase_copy_only_allocate(a, out) == -1)
+    {
+        return -1;
+    }
+    for (long i = 0; i < out->numel; i++)
+    {
+        out->data[i] = op(a->data[i], s);
+    }
+    return 0;
+}
+
+// scalar `op` tensorbase
+static int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
+{
+    if (TensorBase_copy_only_allocate(a, out) == -1)
+    {
+        return -1;
+    }
+    for (long i = 0; i < out->numel; i++)
+    {
+        out->data[i] = op(s, a->data[i]);
+    }
+    return 0;
+}
+
+static int TensorBase_unary_op_inplace(TensorBase *a, scalar (*op)(scalar))
+{
+    if (a->data == NULL)
+    {
+        return -1;
+    }
+    for (long i = 0; i < a->numel; i++)
+    {
+        a->data[i] = op(a->data[i]);
+    }
+    return 0;
+}
+
+static int TensorBase_unary_op(TensorBase *a, TensorBase *out, scalar (*op)(scalar))
+{
+    if (TensorBase_copy_only_allocate(a, out) == -1)
+    {
+        return -1;
+    }
+    for (long i = 0; i < out->numel; i++)
+    {
+        out->data[i] = op(a->data[i]);
+    }
+    return 0;
+}
 
 // TODO: turn into TensorBase_binop_tensor_tensor?
 static void TensorBase_add_tensor_tensor(TensorBase *a, TensorBase *b, TensorBase *out)
@@ -463,7 +606,6 @@ static long TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase
 //             for (int i = 0; i < n; i++)
 //                 C[i + j * n] += A[i + k * n] * B[k + j * n];
 // }
-
 
 static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
