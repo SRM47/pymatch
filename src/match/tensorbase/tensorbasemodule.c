@@ -19,10 +19,6 @@ typedef struct
 } PyTensorBase;
 // clang-format on
 
-// Declare the TypeObject here to avoid referencing issues.
-// Initialization is below.
-static PyTypeObject PyTensorBaseType;
-
 /*********************************************************
  *            Initialization and Deallocation            *
  *********************************************************/
@@ -186,8 +182,7 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj);
  *                   Module Definition                   *
  *********************************************************/
 
-// Declared at top of file.
-PyTensorBaseType = {
+static PyTypeObject PyTensorBaseType = {
     PyVarObject_HEAD_INIT(NULL, 0),
     .tp_name = "match.tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
     .tp_basicsize = sizeof(PyTensorBase),
