@@ -52,7 +52,7 @@ void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size);
  *********************************************************/
 
 static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArray broadcast_shape, int *broadcast_ndim);
-static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim);
+static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int broadcast_ndim);
 static int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out);
 
 /********************************************************* 
@@ -67,7 +67,19 @@ static int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar));
 static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar));
 
 static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out);
-static void TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out);
+static int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out);
+
+static inline scalar scalar_add(scalar a, scalar b);
+static inline scalar scalar_sub(scalar a, scalar b);
+static inline scalar scalar_mult(scalar a, scalar b);
+static inline scalar scalar_floordiv(scalar a, scalar b);
+static inline scalar scalar_truediv(scalar a, scalar b);
+static inline scalar scalar_power(scalar a, scalar b);
+static inline scalar scalar_power_mod(scalar a, scalar b, scalar c);
+static inline scalar scalar_negative(scalar a);
+static inline scalar scalar_positive(scalar a);
+static inline scalar scalar_absolute(scalar a);
+
 
 /********************************************************* 
  *                      Aggregation                      *
@@ -86,6 +98,7 @@ static int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape);
 static int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out);
 
 static int TensorBase_fill_(TensorBase *in, scalar fill_value);
+static int TensorBase_randn_(TensorBase *in);
 
  
 

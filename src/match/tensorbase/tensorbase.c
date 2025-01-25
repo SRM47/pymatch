@@ -221,7 +221,6 @@ static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArr
     return 0;
 }
 
-
 static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int broadcast_ndim)
 {
     if (in->ndim > broadcast_ndim)
@@ -384,6 +383,16 @@ static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(sca
     return 0;
 }
 
+static inline scalar scalar_add(scalar a, scalar b) { return a + b; }
+static inline scalar scalar_sub(scalar a, scalar b) { return a - b; }
+static inline scalar scalar_mult(scalar a, scalar b) { return a * b; }
+static inline scalar scalar_floordiv(scalar a, scalar b);
+static inline scalar scalar_truediv(scalar a, scalar b) { return a / b; }
+static inline scalar scalar_power(scalar a, scalar b) { return pow(a, b); }
+static inline scalar scalar_negative(scalar a) { return -1 * a; }
+static inline scalar scalar_positive(scalar a);
+static inline scalar scalar_absolute(scalar a) { return abs(a); }
+
 // TODO: Implement
 static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out)
 {
@@ -442,3 +451,4 @@ static int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return
 static int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
 
 static int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }
+static int TensorBase_randn_(TensorBase *in) { return -2; }

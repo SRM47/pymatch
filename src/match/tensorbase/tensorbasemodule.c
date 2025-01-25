@@ -1,58 +1,16 @@
 #define PY_SSIZE_T_CLEAN
+
 #include <Python.h>
 #include <stddef.h>
 
 #include "tensorbase.h"
 
-// https://getcode.substack.com/p/fun-and-hackable-tensors-in-rust
-// https://jessicastringham.net/2017/12/31/stride-tricks/
-// https://github.com/abeschneider/tensor/blob/master/include/tensor_ops.hpp
-// https://github.com/kurtschelfthout/tensorken
-// https://www.google.com/search?q=as%20strided%20broadcasting&ie=utf-8&oe=utf-8&client=firefox-b-1-m
-// https://www.google.com/search?client=firefox-b-1-m&sca_esv=da8adb7374804231&q=as+strided+convolution&oq=as+strided+convolution&aqs=heirloom-srp..
+/*********************************************************
+ *               PyTensorBase Definition                 *
+ *********************************************************/
 
-// TODO:
-// - what to do about data types? (void * everywhere?)
-// - allow use as base class?
-// - iterable
-// - implement buffer protocol?
-//      - http://jakevdp.github.io/blog/2014/05/05/introduction-to-the-python-buffer-protocol/
-//      - https://docs.python.org/3/c-api/buffer.html
-// - implement number protocol
-// - implement sequence protocol
-// - https://docs.python.org/3/c-api/structures.html#c.METH_FASTCALL
-//  Py_TPFLAGS_CHECKTYPES
-// - indexing and slicing
-// - multiple tensors can share the same data
-// - squeeze, reshape, resize, transpose, etc.
-// - len, getitem, setitem
-// - handle case of single item tensors (ndim = 0)
-// - be consistent about taking ptr or value
-
-// TODO: useful macros
-// - Py_ALWAYS_INLINE
-// - Py_MAX(x, y)
-// - Py_MIN(x, y)
-// - Py_STRINGIFY(x)
-// - PyDoc_STRVAR(name, str)
-// - PyDoc_STR(str)
-
-// ----------------------------------------------------------------
-// ▗▄▄▖           ▗▄▄▄▖                         ▗▄▄▖
-// ▐▛▀▜▖          ▝▀█▀▘                         ▐▛▀▜▌
-// ▐▌ ▐▌▝█ █▌       █   ▟█▙ ▐▙██▖▗▟██▖ ▟█▙  █▟█▌▐▌ ▐▌ ▟██▖▗▟██▖ ▟█▙
-// ▐██▛  █▖█        █  ▐▙▄▟▌▐▛ ▐▌▐▙▄▖▘▐▛ ▜▌ █▘  ▐███  ▘▄▟▌▐▙▄▖▘▐▙▄▟▌
-// ▐▌    ▐█▛        █  ▐▛▀▀▘▐▌ ▐▌ ▀▀█▖▐▌ ▐▌ █   ▐▌ ▐▌▗█▀▜▌ ▀▀█▖▐▛▀▀▘
-// ▐▌     █▌        █  ▝█▄▄▌▐▌ ▐▌▐▄▄▟▌▝█▄█▘ █   ▐▙▄▟▌▐▙▄█▌▐▄▄▟▌▝█▄▄▌
-// ▝▘     █         ▀   ▝▀▀ ▝▘ ▝▘ ▀▀▀  ▝▀▘  ▀   ▝▀▀▀  ▀▀▝▘ ▀▀▀  ▝▀▀
-//       █▌
-// ----------------------------------------------------------------
-
-//
 // A wrapper around TensorBase enabling use as a Python object.
 // We try to match the pytorch tensor API as closely as possible.
-//
-
 // clang-format off
 typedef struct
 {
@@ -61,229 +19,175 @@ typedef struct
 } PyTensorBase;
 // clang-format on
 
-// ----------------------------------------------------------------
-// ▗▄▄▖                                 █
-// ▐▛▀▜▖                          ▐▌    ▀
-// ▐▌ ▐▌ █▟█▌ ▟█▙ ▐▙█▙  ▟█▙  █▟█▌▐███  ██   ▟█▙ ▗▟██▖
-// ▐██▛  █▘  ▐▛ ▜▌▐▛ ▜▌▐▙▄▟▌ █▘   ▐▌    █  ▐▙▄▟▌▐▙▄▖▘
-// ▐▌    █   ▐▌ ▐▌▐▌ ▐▌▐▛▀▀▘ █    ▐▌    █  ▐▛▀▀▘ ▀▀█▖
-// ▐▌    █   ▝█▄█▘▐█▄█▘▝█▄▄▌ █    ▐▙▄ ▗▄█▄▖▝█▄▄▌▐▄▄▟▌
-// ▝▘    ▀    ▝▀▘ ▐▌▀▘  ▝▀▀  ▀     ▀▀ ▝▀▀▀▘ ▝▀▀  ▀▀▀
-//                ▐▌
-// ----------------------------------------------------------------
+// Declare the TypeObject here to avoid referencing issues.
+// Initialization is below.
+static PyTypeObject PyTensorBaseType;
 
-static PyObject *PyTensorBase_get_ndim(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
-{
-    return PyLong_FromLong(self->tb.ndim);
-}
+/*********************************************************
+ *            Initialization and Deallocation            *
+ *********************************************************/
 
-static PyObject *PyTensorBase_get_shape(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
-{
-    PyObject *shape = PyTuple_New(self->tb.ndim);
+// __init__
+static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds);
+// free / Deallocation.
+static void PyTensorBase_dealloc(PyTensorBase *self);
 
-    for (long i = 0; i < self->tb.ndim; i++)
-    {
-        if (PyTuple_SetItem(shape, i, PyLong_FromLong(self->tb.shape[i])))
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set shape item.");
-            return NULL;
-        }
-    }
-
-    return shape;
-}
-
-static PyGetSetDef PyTensorBase_getset[] = {
-    {"ndim", (getter)PyTensorBase_get_ndim, NULL, "TODO: docs", NULL},
-    {"shape", (getter)PyTensorBase_get_shape, NULL, "TODO: docs", NULL},
-    // {"__getitem__", (getter)PyTensorBase_get_item, NULL, "TODO: docs", NULL},
-    {NULL} /* Sentinel */
-};
-
-// ----------------------------------------------------------------
-// ▗▄ ▄▖          ▗▖           ▗▖
-// ▐█ █▌      ▐▌  ▐▌           ▐▌
-// ▐███▌ ▟█▙ ▐███ ▐▙██▖ ▟█▙  ▟█▟▌▗▟██▖
-// ▐▌█▐▌▐▙▄▟▌ ▐▌  ▐▛ ▐▌▐▛ ▜▌▐▛ ▜▌▐▙▄▖▘
-// ▐▌▀▐▌▐▛▀▀▘ ▐▌  ▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌ ▀▀█▖
-// ▐▌ ▐▌▝█▄▄▌ ▐▙▄ ▐▌ ▐▌▝█▄█▘▝█▄█▌▐▄▄▟▌
-// ▝▘ ▝▘ ▝▀▀   ▀▀ ▝▘ ▝▘ ▝▀▘  ▝▀▝▘ ▀▀▀
-// ----------------------------------------------------------------
-
-static PyObject *PyTensorBase_numel(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
-{
-    return PyLong_FromLong(self->tb.numel);
-}
-
-static PyObject *PyTensorBase_stride(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
-{
-    PyObject *stride = PyTuple_New(self->tb.ndim);
-
-    for (long i = 0; i < self->tb.ndim; i++)
-    {
-        if (PyTuple_SetItem(stride, i, PyLong_FromLong(self->tb.strides[i])))
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set shape item.");
-            return NULL;
-        }
-    }
-
-    return stride;
-}
-
-static PyMethodDef PyTensorBase_methods[] = {
-    {"numel", (PyCFunction)PyTensorBase_numel, METH_NOARGS, "TODO: docs"},
-    {"stride", (PyCFunction)PyTensorBase_stride, METH_NOARGS, "TODO: docs"},
-    {NULL} /* Sentinel */
-};
-
-// ----------------------------------------------------------------
-// ▗▄ ▗▖          ▗▖                  ▗▄▄▖                               ▗▄▖
-// ▐█ ▐▌          ▐▌                  ▐▛▀▜▖           ▐▌                 ▝▜▌
-// ▐▛▌▐▌▐▌ ▐▌▐█▙█▖▐▙█▙  ▟█▙  █▟█▌     ▐▌ ▐▌ █▟█▌ ▟█▙ ▐███  ▟█▙  ▟██▖ ▟█▙  ▐▌
-// ▐▌█▐▌▐▌ ▐▌▐▌█▐▌▐▛ ▜▌▐▙▄▟▌ █▘       ▐██▛  █▘  ▐▛ ▜▌ ▐▌  ▐▛ ▜▌▐▛  ▘▐▛ ▜▌ ▐▌
-// ▐▌▐▟▌▐▌ ▐▌▐▌█▐▌▐▌ ▐▌▐▛▀▀▘ █        ▐▌    █   ▐▌ ▐▌ ▐▌  ▐▌ ▐▌▐▌   ▐▌ ▐▌ ▐▌
-// ▐▌ █▌▐▙▄█▌▐▌█▐▌▐█▄█▘▝█▄▄▌ █        ▐▌    █   ▝█▄█▘ ▐▙▄ ▝█▄█▘▝█▄▄▌▝█▄█▘ ▐▙▄
-// ▝▘ ▀▘ ▀▀▝▘▝▘▀▝▘▝▘▀▘  ▝▀▀  ▀        ▝▘    ▀    ▝▀▘   ▀▀  ▝▀▘  ▝▀▀  ▝▀▘   ▀▀
-// ----------------------------------------------------------------
+/*********************************************************
+ *                   Number Protocol                     *
+ *********************************************************/
 
 // These methods are implemented below
-// TODO: move implementations here?
-static PyObject *PyTensorBase_add(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_divide(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_negate(PyObject *a);
+static PyObject *PyTensorBase_nb_ternary_operation(PyObject *a, PyObject *b, PyObject *c, scalar (*op)(scalar, scalar));
+static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar));
+static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar));
 
-static PyObject *PyTensorBase_matrix_multiply(PyTensorBase *a, PyTensorBase *b);
+static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b);
 
+static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_add); }
+static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_sub); }
+static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_mult); }
+static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_floordiv); }
+static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
+static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c) = 0;
+static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
+static PyObject *PyTensorBase_nb_positive(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_positive); }
+static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
+
+// https://docs.python.org/3/c-api/typeobj.html#number-object-structures
 static PyNumberMethods PyTensorBase_as_number = {
-    .nb_add = (binaryfunc)PyTensorBase_add,
-    // .nb_subtract = (binaryfunc)PyTensorBase_as_number_subtract,
-    // .nb_multiply = (binaryfunc)PyTensorBase_as_number_multiply,
-    // .nb_floor_divide = (binaryfunc)PyTensorBase_as_number_floor_divide,
-    .nb_true_divide = (binaryfunc)PyTensorBase_divide,
-    // .nb_remainder = (binaryfunc)PyTensorBase_as_number_remainder,
-    // .nb_divmod = (binaryfunc)PyTensorBase_
-
+    .nb_add = (binaryfunc)PyTensorBase_nb_add,
+    .nb_subtract = (binaryfunc)PyTensorBase_nb_subtract,
+    .nb_multiply = (binaryfunc)PyTensorBase_nb_multiply,
+    .nb_floor_divide = (binaryfunc)PyTensorBase_nb_floor_divide,
+    .nb_true_divide = (binaryfunc)PyTensorBase_nb_true_divide,
+    // .nb_remainder = 0,
+    // .nb_divmod = 0,
     .nb_matrix_multiply = (binaryfunc)PyTensorBase_matrix_multiply,
-
-    // .nb_power = (ternaryfunc)PyTensorBase_as_number_power,
-
-    .nb_negative = (unaryfunc)PyTensorBase_negate,
-    // .nb_positive = (unaryfunc)PyTensorBase_as_number_positive,
-    // .nb_absolute = (unaryfunc)PyTensorBase_as_number_absolute,
-    // .nb_invert = (unaryfunc)PyTensorBase_as_number_invert,
-
-    // .nb_lshift = (binaryfunc)PyTensorBase_as_number_lshift,
-    // .nb_rshift = (binaryfunc)PyTensorBase_as_number_rshift,
-
-    // .nb_bool = (inquiry)PyTensorBase_,
-
-    // .nb_and = (binaryfunc)PyTensorBase_as_number_and,
-    // .nb_xor = (binaryfunc)PyTensorBase_as_number_xor,
-    // .nb_or = (binaryfunc)PyTensorBase_as_number_or,
-
-    // .nb_int = (unaryfunc)PyTensorBase_as_number_int,
-    // .nb_float = (unaryfunc)PyTensorBase_as_number_float,
-
-    // .nb_inplace_add = (binaryfunc)PyTensorBase_as_number_inplace_add,
-    // .nb_inplace_subtract = (binaryfunc)PyTensorBase_as_number_inplace_subtract,
-    // .nb_inplace_multiply = (binaryfunc)PyTensorBase_as_number_inplace_multiply,
-    // .nb_inplace_floor_divide = (binaryfunc)PyTensorBase_as_number_inplace_floor_divide,
-    // .nb_inplace_true_divide = (binaryfunc)PyTensorBase_as_number_inplace_true_divide,
-    // .nb_inplace_remainder = (binaryfunc)PyTensorBase_as_number_inplace_remainder,
-    // .nb_inplace_matrix_multiply = (binaryfunc)PyTensorBase_as_number_inplace_matrix_multiply,
-    // .nb_inplace_power = (ternaryfunc)PyTensorBase_as_number_inplace_power,
-    // .nb_inplace_lshift = (binaryfunc)PyTensorBase_as_number_inplace_lshift,
-    // .nb_inplace_rshift = (binaryfunc
-    // .nb_inplace_and
-    // .nb_inplace_xor
-    // .nb_inplace_or
-
-    // .nb_index
+    .nb_power = (ternaryfunc)PyTensorBase_nb_power,
+    .nb_negative = (unaryfunc)PyTensorBase_nb_negate,
+    .nb_positive = (unaryfunc)PyTensorBase_nb_positive,
+    .nb_absolute = (unaryfunc)PyTensorBase_nb_absolute,
+    // .nb_invert = 0,
+    // .nb_lshift = 0,
+    // .nb_rshift = 0,
+    // .nb_bool = 0,
+    // .nb_and = 0,
+    // .nb_xor = 0,
+    // .nb_or = 0,
+    // .nb_int = 0,
+    // .nb_float = 0,
+    // .nb_inplace_add = 0,
+    // .nb_inplace_subtract = 0,
+    // .nb_inplace_multiply = 0,
+    // .nb_inplace_floor_divide = 0,
+    // .nb_inplace_true_divide = 0,
+    // .nb_inplace_remainder = 0,
+    // .nb_inplace_matrix_multiply = 0,
+    // .nb_inplace_power = 0,
+    // .nb_inplace_lshift = 0,
+    // .nb_inplace_rshift = 0,
+    // .nb_inplace_and = 0,
+    // .nb_inplace_xor = 0,
+    // .nb_inplace_or = 0,
+    // .nb_index = 0,
 };
 
-// ----------------------------------------------------------------
-// ▗▄▄▖            ▗▄▖ ▗▖     █                      ▗▄▄         ▄▄
-// ▐▛▀▜▖           █▀█ ▐▌     ▀             ▐▌       ▐▛▀█       ▐▛▀
-// ▐▌ ▐▌▝█ █▌     ▐▌ ▐▌▐▙█▙  ██   ▟█▙  ▟██▖▐███      ▐▌ ▐▌ ▟█▙ ▐███
-// ▐██▛  █▖█      ▐▌ ▐▌▐▛ ▜▌  █  ▐▙▄▟▌▐▛  ▘ ▐▌       ▐▌ ▐▌▐▙▄▟▌ ▐▌
-// ▐▌    ▐█▛      ▐▌ ▐▌▐▌ ▐▌  █  ▐▛▀▀▘▐▌    ▐▌       ▐▌ ▐▌▐▛▀▀▘ ▐▌
-// ▐▌     █▌       █▄█ ▐█▄█▘  █  ▝█▄▄▌▝█▄▄▌ ▐▙▄      ▐▙▄█ ▝█▄▄▌ ▐▌
-// ▝▘     █        ▝▀▘ ▝▘▀▘   █   ▝▀▀  ▝▀▀   ▀▀      ▝▀▀   ▝▀▀  ▝▘
-//       █▌                 ▐█▛
-// ----------------------------------------------------------------
+/*********************************************************
+ *                  Sequence Protocol                    *
+ *********************************************************/
 
-static int args_to_shape(PyObject *args, ShapeArray *tb_shape)
-{
-    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
-    Py_ssize_t tuple_len = PyTuple_Size(args);
+// https://docs.python.org/3/c-api/typeobj.html#sequence-object-structures
+static PySequenceMethods PyTensorBase_sequence_methods = {
+    // .sq_length = 0,
+    // .sq_concat = 0,
+    // .sq_repeat = 0,
+    // .sq_item = 0,
+    // .sq_ass_item = 0,
+    // .sq_contains = 0,
+    // .sq_inplace_concat = 0,
+    // .sq_inplace_repeat = 0,
+};
 
-    if (tuple_len == 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Tensor must have at least one value.");
-        return -1;
-    }
+/*********************************************************
+ *                   Mapping Methods                     *
+ *********************************************************/
 
-    if (tuple_len > MAX_RANK)
-    {
-        PyErr_SetString(PyExc_ValueError, "Tensor rank exceeds maximum allowed.");
-        return -1;
-    }
+// https://docs.python.org/3/c-api/typeobj.html#mapping-object-structures
+static PyMappingMethods PyTensorBase_mapping_methods = {
+    .mp_length = 0,
+    .mp_subscript = 0,
+    .mp_ass_subscript = 0,
+};
 
-    memset(tb_shape, 0, sizeof(ShapeArray));
+/*********************************************************
+ *                   Instance Methods                    *
+ *********************************************************/
+// Excludes all number methods.
+/*
+TODO: Implement the following instance methods:
 
-    for (long i = 0; i < tuple_len; i++)
-    {
-        PyObject *item = PyTuple_GetItem(args, i);
-        if (!PyLong_Check(item))
-        {
-            PyErr_SetString(PyExc_ValueError, "Tensor dimensions must be integers.");
-            return -1;
-        }
+* Both in-place and out-of-place
+    abs_, cos_, sin_, tan_, log_, exp_, pow_,
+    reshape_, fill_, sigmoid_, tanh_, zero_
 
-        (*tb_shape)[i] = PyLong_AsLong(item);
-    }
+* Only out-of-place:
+    max, min, mean, sum, broadcast_to, permute, transpose/T
+*/
+static PyMethodDef PyTensorBase_instance_methods[] = {
+    {NULL} /* Sentinel */
+};
 
-    return 1;
-}
+/*********************************************************
+ *               Member Variable Definition              *
+ *********************************************************/
+// Expose read-only instance variables.
+static PyMemberDef PyTensorBase_members[] = {
+    {"ndim", Py_T_LONG, offsetof(PyTensorBase, tb.ndim), Py_READONLY,
+     "Tensor rank"},
+    {NULL} /* Sentinel */
+};
 
-static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
-{
+/*********************************************************
+ *                  Get Set Definition                   *
+ *********************************************************/
+static PyObject *PyTensorBase_get_dim(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
+static PyObject *PyTensorBase_get_size(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
+static PyObject *PyTensorBase_get_numel(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
+static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
 
-    ShapeArray tb_shape = {0};
-    if (args_to_shape(args, &tb_shape) < 0)
-    {
-        // NOTE: error message set in args_to_shape
-        return -1;
-    }
+static PyGetSetDef PyTensorBase_getset[] = {
+    {"dim", (getter)PyTensorBase_get_dim, NULL, "Gets tensor rank", NULL},
+    {"size", (getter)PyTensorBase_get_size, NULL, "Tensor shape", NULL},
+    {"numel", (getter)PyTensorBase_get_size, NULL, "Number of elements in Tensor", NULL},
+    {"stride", (getter)PyTensorBase_get_size, NULL, "Strides of tensor", NULL},
+    {NULL} /* Sentinel */
+};
 
-    if (TensorBase_init(&self->tb, tb_shape) < 0)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor data.");
-        return -1;
-    }
+/*********************************************************
+ *                 Class/Module Methods                  *
+ *********************************************************/
 
-    return 0;
-}
+static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args);
+static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args);
 
-static void PyTensorBase_dealloc(PyTensorBase *self)
-{
-    TensorBase_dealloc(&self->tb);
-    Py_TYPE(self)->tp_free((PyObject *)self);
-}
+static PyMethodDef PyTensorBase_class_methods[] = {
+    {"ones", (PyCFunction)PyTensorBase_ones, METH_VARARGS, "TODO: docs"},
+    {"randn", (PyCFunction)PyTensorBase_randn, METH_VARARGS, "TODO: docs"},
+    {NULL} /* Sentinel */
+};
 
-static PyObject *PyTensorBase_str(PyTensorBase *obj)
-{
-    // TODO: calculate a reasonable buffer size
-    char *str_buffer = malloc(100 * sizeof(char));
+/*********************************************************
+ *                   String Methods                      *
+ *********************************************************/
 
-    TensorBase_to_string(&obj->tb, str_buffer, 100 * sizeof(char));
+static PyObject *PyTensorBase_str(PyTensorBase *obj);
 
-    return Py_BuildValue("s", str_buffer);
-}
+/*********************************************************
+ *                   Module Definition                   *
+ *********************************************************/
 
-// NOTE: disabling formatter due to PyVarObject_HEAD_INIT macro
-static PyTypeObject PyTensorBaseType = {
+// Declared at top of file.
+PyTensorBaseType = {
     PyVarObject_HEAD_INIT(NULL, 0),
     .tp_name = "match.tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
     .tp_basicsize = sizeof(PyTensorBase),
@@ -294,14 +198,13 @@ static PyTypeObject PyTensorBaseType = {
     // .tp_vectorcall_offset = 0,
     // .tp_getattr = 0,
     // .tp_setattr = 0,
-    // .tp_as_async = 0, /* formerly known as tp_compare (Python 2)
-                                    or tp_reserved (Python 3) */
+    // .tp_as_async = 0, /* formerly known as tp_compare (Python 2) or tp_reserved (Python 3) */
     // .tp_repr = 0,
 
     /* Method suites for standard classes */
     .tp_as_number = &PyTensorBase_as_number,
-    // .tp_as_sequence = 0,
-    // .tp_as_mapping = 0,
+    .tp_as_sequence = &PyTensorBase_sequence_methods,
+    .tp_as_mapping = &PyTensorBase_mapping_methods,
 
     /* More standard operations (here for binary compatibility) */
     // .tp_hash = 0,
@@ -337,8 +240,8 @@ static PyTypeObject PyTensorBaseType = {
     // .tp_iternext = 0,
 
     /* Attribute descriptor and subclassing stuff */
-    .tp_methods = PyTensorBase_methods,
-    // .tp_members = 0,
+    .tp_methods = PyTensorBase_instance_methods,
+    .tp_members = PyTensorBase_members,
     .tp_getset = PyTensorBase_getset,
     // Strong reference on a heap type, borrowed reference on a static type
     // .tp_base = 0,
@@ -367,6 +270,36 @@ static PyTypeObject PyTensorBaseType = {
     /* bitset of which type-watchers care about this type */
     // .tp_watched = 0,
 };
+
+static PyModuleDef TensorBaseModule = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "match.tensorbase",
+    .m_doc = PyDoc_STR("TODO: docs"),
+    .m_size = -1,
+    .m_methods = PyTensorBase_class_methods,
+};
+
+PyMODINIT_FUNC
+PyInit_tensorbase(void)
+{
+
+    if (PyType_Ready(&PyTensorBaseType) < 0)
+        return NULL;
+
+    PyObject *m = PyModule_Create(&TensorBaseModule);
+    if (m == NULL)
+        return NULL;
+
+    Py_INCREF(&PyTensorBaseType);
+    if (PyModule_AddObject(m, "TensorBase", (PyObject *)&PyTensorBaseType) < 0)
+    {
+        Py_DECREF(&PyTensorBaseType);
+        Py_DECREF(m);
+        return NULL;
+    }
+
+    return m;
+}
 
 // ----------------------------------------------------------------
 // ▗▖ ▗▖       █  ▗▄▖    █         █
@@ -590,16 +523,6 @@ static PyObject *PyTensorBase_matrix_multiply(PyTensorBase *a, PyTensorBase *b)
     }
 }
 
-// ----------------------------------------------------------------
-// ▗▄▄▄▖                      █
-// ▐▛▀▀▘                ▐▌    ▀
-// ▐▌   ▐▌ ▐▌▐▙██▖ ▟██▖▐███  ██   ▟█▙ ▐▙██▖▗▟██▖
-// ▐███ ▐▌ ▐▌▐▛ ▐▌▐▛  ▘ ▐▌    █  ▐▛ ▜▌▐▛ ▐▌▐▙▄▖▘
-// ▐▌   ▐▌ ▐▌▐▌ ▐▌▐▌    ▐▌    █  ▐▌ ▐▌▐▌ ▐▌ ▀▀█▖
-// ▐▌   ▐▙▄█▌▐▌ ▐▌▝█▄▄▌ ▐▙▄ ▗▄█▄▖▝█▄█▘▐▌ ▐▌▐▄▄▟▌
-// ▝▘    ▀▀▝▘▝▘ ▝▘ ▝▀▀   ▀▀ ▝▀▀▀▘ ▝▀▘ ▝▘ ▝▘ ▀▀▀
-// ----------------------------------------------------------------
-
 static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)
 {
     ShapeArray tb_shape = {0};
@@ -646,75 +569,92 @@ static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
     return new_tb;
 }
 
-static PyObject *PyTensorBase_sigmoid(PyModuleDef *module, PyObject *args)
+static int args_to_shape(PyObject *args, ShapeArray *tb_shape)
 {
-    PyObject *obj;
+    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
+    Py_ssize_t tuple_len = PyTuple_Size(args);
 
-    if (PyArg_ParseTuple(args, "O", &obj) < 0)
+    if (tuple_len == 0)
     {
-        PyErr_SetString(PyExc_ValueError, "Failed to parse TensorBase argument.");
-        return NULL;
+        PyErr_SetString(PyExc_ValueError, "Tensor must have at least one value.");
+        return -1;
     }
 
-    PyTensorBase *t = (PyTensorBase *)obj;
-    // printf("t->tb.shape: %ld, %ld\n", t->tb.shape[0], t->tb.shape[1]);
-    // printf("t->tb.numel: %ld\n", t->tb.numel);
-    // printf("t->strides: %ld, %ld\n", t->tb.strides[0], t->tb.strides[1]);
-    // printf("t->ndim: %ld\n", t->tb.ndim);
-    PyTensorBase *result = PyTensorBase_create(t->tb.shape);
-    if (!result)
+    if (tuple_len > MAX_RANK)
     {
-        // NOTE: error string set in PyTensorBase_create
-        return NULL;
+        PyErr_SetString(PyExc_ValueError, "Tensor rank exceeds maximum allowed.");
+        return -1;
     }
 
-    TensorBase_sigmoid(&t->tb, &result->tb);
-    return (PyObject *)result;
+    memset(tb_shape, 0, sizeof(ShapeArray));
+
+    for (long i = 0; i < tuple_len; i++)
+    {
+        PyObject *item = PyTuple_GetItem(args, i);
+        if (!PyLong_Check(item))
+        {
+            PyErr_SetString(PyExc_ValueError, "Tensor dimensions must be integers.");
+            return -1;
+        }
+
+        (*tb_shape)[i] = PyLong_AsLong(item);
+    }
+
+    return 1;
 }
 
-static PyMethodDef PyTensorBase_functions[] = {
-    {"ones", (PyCFunction)PyTensorBase_ones, METH_VARARGS, "TODO: docs"},
-    {"randn", (PyCFunction)PyTensorBase_randn, METH_VARARGS, "TODO: docs"},
-    {"sigmoid", (PyCFunction)PyTensorBase_sigmoid, METH_VARARGS, "TODO: docs"},
-    {NULL} /* Sentinel */
-};
-
-// ----------------------------------------------------------------
-// ▗▄ ▄▖        ▗▖     ▗▄▖
-// ▐█ █▌        ▐▌     ▝▜▌
-// ▐███▌ ▟█▙  ▟█▟▌▐▌ ▐▌ ▐▌   ▟█▙
-// ▐▌█▐▌▐▛ ▜▌▐▛ ▜▌▐▌ ▐▌ ▐▌  ▐▙▄▟▌
-// ▐▌▀▐▌▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌ ▐▌  ▐▛▀▀▘
-// ▐▌ ▐▌▝█▄█▘▝█▄█▌▐▙▄█▌ ▐▙▄ ▝█▄▄▌
-// ▝▘ ▝▘ ▝▀▘  ▝▀▝▘ ▀▀▝▘  ▀▀  ▝▀▀
-// ----------------------------------------------------------------
-
-static PyModuleDef TensorBaseModule = {
-    .m_base = PyModuleDef_HEAD_INIT,
-    .m_name = "match.tensorbase",
-    .m_doc = PyDoc_STR("TODO: docs"),
-    .m_size = -1,
-    .m_methods = PyTensorBase_functions,
-};
-
-PyMODINIT_FUNC
-PyInit_tensorbase(void)
+static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {
 
-    if (PyType_Ready(&PyTensorBaseType) < 0)
-        return NULL;
-
-    PyObject *m = PyModule_Create(&TensorBaseModule);
-    if (m == NULL)
-        return NULL;
-
-    Py_INCREF(&PyTensorBaseType);
-    if (PyModule_AddObject(m, "TensorBase", (PyObject *)&PyTensorBaseType) < 0)
+    ShapeArray tb_shape = {0};
+    if (args_to_shape(args, &tb_shape) < 0)
     {
-        Py_DECREF(&PyTensorBaseType);
-        Py_DECREF(m);
-        return NULL;
+        // NOTE: error message set in args_to_shape
+        return -1;
     }
 
-    return m;
+    if (TensorBase_init(&self->tb, tb_shape) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor data.");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void PyTensorBase_dealloc(PyTensorBase *self)
+{
+    TensorBase_dealloc(&self->tb);
+    Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static PyObject *PyTensorBase_get_dim(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
+{
+    return PyLong_FromLong(self->tb.ndim);
+}
+
+static PyObject *PyTensorBase_get_size(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
+{
+    PyObject *shape = PyTuple_New(self->tb.ndim);
+
+    for (long i = 0; i < self->tb.ndim; i++)
+    {
+        if (PyTuple_SetItem(shape, i, PyLong_FromLong(self->tb.shape[i])))
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set shape item.");
+            return NULL;
+        }
+    }
+
+    return shape;
+}
+
+static PyObject *PyTensorBase_str(PyTensorBase *obj)
+{
+    // TODO: calculate a reasonable buffer size
+    char *str_buffer = malloc(100 * sizeof(char));
+
+    TensorBase_to_string(&obj->tb, str_buffer, 100 * sizeof(char));
+
+    return Py_BuildValue("s", str_buffer);
 }
