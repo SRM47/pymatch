@@ -31,23 +31,17 @@ static void PyTensorBase_dealloc(PyTensorBase *self);
 /*********************************************************
  *                   Number Protocol                     *
  *********************************************************/
-
-// These methods are implemented below
-static PyObject *PyTensorBase_nb_ternary_operation(PyObject *a, PyObject *b, PyObject *c, scalar (*op)(scalar, scalar));
-static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar));
-static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar));
-
 static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b);
 
-static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_add); }
-static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_sub); }
-static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_mult); }
-static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_floordiv); }
-static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
-static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c) = 0;
-static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
-static PyObject *PyTensorBase_nb_positive(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_positive); }
-static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
+static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c);
+static PyObject *PyTensorBase_nb_negative(PyObject *a);
+static PyObject *PyTensorBase_nb_positive(PyObject *a);
+static PyObject *PyTensorBase_nb_absolute(PyObject *a);
 
 // https://docs.python.org/3/c-api/typeobj.html#number-object-structures
 static PyNumberMethods PyTensorBase_as_number = {
@@ -296,15 +290,13 @@ PyInit_tensorbase(void)
     return m;
 }
 
-// ----------------------------------------------------------------
-// ▗▖ ▗▖       █  ▗▄▖    █         █
-// ▐▌ ▐▌ ▐▌    ▀  ▝▜▌    ▀   ▐▌    ▀
-// ▐▌ ▐▌▐███  ██   ▐▌   ██  ▐███  ██   ▟█▙ ▗▟██▖
-// ▐▌ ▐▌ ▐▌    █   ▐▌    █   ▐▌    █  ▐▙▄▟▌▐▙▄▖▘
-// ▐▌ ▐▌ ▐▌    █   ▐▌    █   ▐▌    █  ▐▛▀▀▘ ▀▀█▖
-// ▝█▄█▘ ▐▙▄ ▗▄█▄▖ ▐▙▄ ▗▄█▄▖ ▐▙▄ ▗▄█▄▖▝█▄▄▌▐▄▄▟▌
-//  ▝▀▘   ▀▀ ▝▀▀▀▘  ▀▀ ▝▀▀▀▘  ▀▀ ▝▀▀▀▘ ▝▀▀  ▀▀▀
-// ----------------------------------------------------------------
+/*********************************************************
+ *                    IMPLEMENTATION                     *
+ *********************************************************/
+
+/*********************************************************
+ *                       Utilities                       *
+ *********************************************************/
 
 static long PyTensorBase_Check(PyObject *obj)
 {
@@ -330,7 +322,7 @@ static scalar PyFloatOrLong_asDouble(PyObject *obj)
     return PyFloat_AsDouble(obj);
 }
 
-static PyTensorBase *PyTensorBase_create(ShapeArray shape)
+static PyTensorBase *PyTensorBase_create(ShapeArray shape, long ndim)
 {
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
@@ -339,7 +331,7 @@ static PyTensorBase *PyTensorBase_create(ShapeArray shape)
         return NULL;
     }
 
-    if (TensorBase_init(&result->tb, shape) < 0)
+    if (TensorBase_init(&result->tb, shape, ndim) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor base.");
         return NULL;
@@ -374,6 +366,22 @@ static PyTensorBase *PyTensorBase_create(ShapeArray shape)
 //   ▀   ▝▀▀ ▝▘ ▝▘ ▀▀▀  ▝▀▘  ▀        ▝▘ ▝▘ ▀▀▝▘  ▀▀ ▝▘ ▝▘
 // ----------------------------------------------------------------
 
+static PyObject *PyTensorBase_nb_ternary_operation(PyObject *a, PyObject *b, PyObject *c, scalar (*op)(scalar, scalar)) {return NULL;}
+static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar)) {return NULL;}
+static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar)) {return NULL;}
+
+static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_add); }
+static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_sub); }
+static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_mult); }
+static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_floordiv); }
+static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
+static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c) = 0;
+static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
+static PyObject *PyTensorBase_nb_positive(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_positive); }
+static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
+
+
+// USE THE FOLLOWING AS INSPIRATION
 static PyObject *PyTensorBase_add_tensor_scalar(PyTensorBase *t, scalar s)
 {
     PyTensorBase *result = PyTensorBase_create(t->tb.shape);
