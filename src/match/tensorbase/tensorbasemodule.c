@@ -140,6 +140,8 @@ static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args))
 
 static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args));
 
+static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args));
+
 static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args);
 static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args);
 
@@ -182,6 +184,8 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"zero_", (PyCFunction)PyTensorBase_zero_, METH_NOARGS, "In-place zero."},
 
+    {"item", (PyCFunction)PyTensorBase_item, METH_NOARGS, "Transpose the array."},
+
     // Methods with arguments.
     {"reshape_", (PyCFunction)PyTensorBase_reshape_, METH_O, "In-place reshape."},
     {"reshape", (PyCFunction)PyTensorBase_reshape, METH_O, "Out-of-place reshape."},
@@ -217,12 +221,14 @@ static PyObject *PyTensorBase_get_dim(PyTensorBase *self, PyObject *Py_UNUSED(ig
 static PyObject *PyTensorBase_get_size(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
 static PyObject *PyTensorBase_get_numel(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
 static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
+static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUSED(ignored));
 
 static PyGetSetDef PyTensorBase_getset[] = {
     {"dim", (getter)PyTensorBase_get_dim, NULL, "Gets tensor rank", NULL},
     {"size", (getter)PyTensorBase_get_size, NULL, "Tensor shape", NULL},
     {"numel", (getter)PyTensorBase_get_numel, NULL, "Number of elements in Tensor", NULL},
     {"stride", (getter)PyTensorBase_get_stride, NULL, "Strides of tensor", NULL},
+    {"_raw_data", (getter)PyTensorBase_get_raw_data, NULL, "The raw data of the tensorbase.", NULL},
     {NULL} /* Sentinel */
 };
 
@@ -611,6 +617,17 @@ static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args))
     return NULL;
 }
 
+static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args)) {
+    scalar item;
+    TensorBase *t = &((PyTensorBase*)self)->tb;
+    if (TensorBase_item(t, &item) < 0){
+        PyErr_SetString(PyExc_NotImplementedError, "Not singleton or numel isn't 1!");
+        return NULL;
+    }
+    return PyLong_FromLong(item);
+}
+
+
 static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
 {
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape_ is not implemented");
@@ -711,6 +728,21 @@ static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED
     }
 
     return stride;
+}
+
+static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUSED(ignored)) {
+    PyObject *raw_data = PyList_New(self->tb.numel);
+
+    for (long i = 0; i < self->tb.numel; i++)
+    {
+        if (PyList_SetItem(raw_data, i, PyLong_FromLong(self->tb.data[i])))
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set stride item.");
+            return NULL;
+        }
+    }
+
+    return raw_data;
 }
 
 static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)

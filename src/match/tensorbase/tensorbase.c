@@ -461,3 +461,10 @@ int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { retu
 
 int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }
 int TensorBase_randn_(TensorBase *in) { return -2; }
+
+int TensorBase_item(TensorBase *t, scalar *item) {
+    if (t->numel != 1) {
+        return -1;
+    }
+    *item = *(t->data);
+}
