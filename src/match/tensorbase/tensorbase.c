@@ -129,13 +129,14 @@ static void TensorBase_dealloc(TensorBase *td)
 
 static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
 {
+    if (out->data != NULL)
+    {
+        free(out->data);
+    }
+    out->data = (scalar *)malloc(in->numel * sizeof(scalar));
     if (out->data == NULL)
     {
-        out->data = (scalar *)malloc(in->numel * sizeof(scalar));
-        if (out->data == NULL)
-        {
-            return -1;
-        }
+        return -1;
     }
     out->numel = in->numel;
     out->ndim = in->ndim;
@@ -255,7 +256,7 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
     // Check if a is a singleton.
     if (TensorBase_is_singleton(a))
     {
-        scalar s = *a->data;
+        scalar s = *(a->data);
         return TensorBase_binary_op_scalar_tensorbase(b, s, out, op);
     }
 
@@ -270,7 +271,7 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
     if (Tensorbase_same_shape(a->shape, b->shape))
     {
         // They have the same shape.
-        if (TensorBase_copy_only_allocate(a, out) == -1)
+        if (TensorBase_create_empty_like(a, out) == -1)
         {
             return -1;
         }
@@ -333,7 +334,7 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
 
 static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
 {
-    if (TensorBase_copy_only_allocate(a, out) == -1)
+    if (TensorBase_create_empty_like(a, out) == -1)
     {
         return -1;
     }
@@ -346,7 +347,7 @@ static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, Tenso
 
 static int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
 {
-    if (TensorBase_copy_only_allocate(a, out) == -1)
+    if (TensorBase_create_empty_like(a, out) == -1)
     {
         return -1;
     }

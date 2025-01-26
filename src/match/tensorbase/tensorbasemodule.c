@@ -271,7 +271,6 @@ static PyModuleDef TensorBaseModule = {
 PyMODINIT_FUNC
 PyInit_tensorbase(void)
 {
-
     if (PyType_Ready(&PyTensorBaseType) < 0)
         return NULL;
 
@@ -322,7 +321,9 @@ static scalar PyFloatOrLong_asDouble(PyObject *obj)
     return PyFloat_AsDouble(obj);
 }
 
-static PyTensorBase *PyTensorBase_create(ShapeArray shape, long ndim)
+static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
+
+static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar))
 {
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
@@ -331,30 +332,78 @@ static PyTensorBase *PyTensorBase_create(ShapeArray shape, long ndim)
         return NULL;
     }
 
-    if (TensorBase_init(&result->tb, shape, ndim) < 0)
+    // PyTensorBase + (Long | Float)
+    if (PyTensorBase_Check(a) && PyFloatOrLong_Check(b))
     {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor base.");
+        TensorBase *t = &(((PyTensorBase *)a)->tb);
+        scalar s = PyFloatOrLong_asDouble(b);
+        if (TensorBase_binary_op_tensorbase_scalar(t, s, &(result->tb), op) < 0)
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
+            return NULL;
+        }
+    }
+    // (Long | Float) + PyTensorBase
+    else if (PyFloatOrLong_Check(a) && PyTensorBase_Check(b))
+    {
+        TensorBase *t = &(((PyTensorBase *)b)->tb);
+        scalar s = PyFloatOrLong_asDouble(a);
+        if (TensorBase_binary_op_scalar_tensorbase(t, s, &(result->tb), op) < 0)
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
+            return NULL;
+        }
+    }
+    // PyTensorBase + PyTensorBase
+    else if (PyTensorBase_Check(a) && PyTensorBase_Check(b))
+    {
+        TensorBase *l = &(((PyTensorBase *)a)->tb);
+        TensorBase *r = &(((PyTensorBase *)b)->tb);
+        if (TensorBase_binary_op_tensorbase_tensorbase(l, r, &(result->tb), op) < 0)
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
+            return NULL;
+        }
+    }
+    // Incompatible types for mathematical binary operations
+    else
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid types for addition.");
+        return NULL;
+    }
+    return (PyObject *)result;
+}
+
+static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar))
+{
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create new TensorBase object.");
         return NULL;
     }
 
-    return result;
+    TensorBase *in = &(((PyTensorBase *)a)->tb);
+    if (TensorBase_unary_op(in, &(result->tb), op) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error performing unary operation");
+        return NULL;
+    }
+
+    return (PyObject *)result;
 }
 
-// static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape)
-// {
-//     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
-//     if (result == NULL)
-//     {
-//         PyErr_SetString(PyExc_RuntimeError, "Failed to create new PyTensorBase object.");
-//         return NULL;
-//     }
+static PyObject *PyTensorBase_nb_unary_operation_inpalce(PyObject *a, scalar (*op)(scalar, scalar))
+{
+    // Assumes input PyObject is already of type PyTensorBase.
+    TensorBase *in = &(((PyTensorBase *)a)->tb);
+    if (TensorBase_unary_op_inplace(in, op) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error performing inplace unary operation");
+    }
 
-//     result->tb = t->tb;
-
-//     // Muck with strides...
-
-//     return result;
-// }
+    return NULL;
+}
 
 // ----------------------------------------------------------------
 // ▗▄▄▄▖                              ▗▄ ▄▖          ▗▖
@@ -366,164 +415,41 @@ static PyTensorBase *PyTensorBase_create(ShapeArray shape, long ndim)
 //   ▀   ▝▀▀ ▝▘ ▝▘ ▀▀▀  ▝▀▘  ▀        ▝▘ ▝▘ ▀▀▝▘  ▀▀ ▝▘ ▝▘
 // ----------------------------------------------------------------
 
-static PyObject *PyTensorBase_nb_ternary_operation(PyObject *a, PyObject *b, PyObject *c, scalar (*op)(scalar, scalar)) {return NULL;}
-static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar)) {return NULL;}
-static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar)) {return NULL;}
-
 static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_add); }
 static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_sub); }
 static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_mult); }
 static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_floordiv); }
 static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
-static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c) = 0;
+static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *Py_UNUSED(ignored)) { return PyTensorBase_nb_binary_operation(a, b, scalar_power); }
 static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
 static PyObject *PyTensorBase_nb_positive(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_positive); }
 static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
-
-
-// USE THE FOLLOWING AS INSPIRATION
-static PyObject *PyTensorBase_add_tensor_scalar(PyTensorBase *t, scalar s)
+static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
 {
-    PyTensorBase *result = PyTensorBase_create(t->tb.shape);
-    if (!result)
+    // Both a and b must be of type TensorBase.
+    if (!(PyTensorBase_Check(a) && PyTensorBase_Check(b)))
     {
-        // NOTE: error string set in PyTensorBase_create
+        PyErr_SetString(PyExc_ValueError, "Invalid types for addition. Must operands must be Tensors.");
         return NULL;
     }
 
-    TensorBase_add_tensor_scalar(&t->tb, s, &result->tb);
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create new TensorBase object.");
+        return NULL;
+    }
+
+    TensorBase *l = &(((PyTensorBase *)a)->tb);
+    TensorBase *r = &(((PyTensorBase *)b)->tb);
+
+    if (TensorBase_matrix_multiply(l, r, &(result->tb)) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error in matrix multiply.");
+        return NULL;
+    }
+
     return (PyObject *)result;
-}
-
-static PyObject *PyTensorBase_add_tensor_tensor(PyTensorBase *a, PyTensorBase *b)
-{
-    PyTensorBase *result = PyTensorBase_create(a_temp.shape);
-    if (!result)
-    {
-        // NOTE: error string set in PyTensorBase_create
-        return NULL;
-    }
-    scalar (*add)(scalar, scalar) = [](scalar a, scalar b)
-    { return a + b; };
-    if (TensorBase_binary_op_tensorbase_tensorbase(&a->tb, &b->tb, &result->tb, add) == -1)
-    {
-        // NOTE: error string set in PyTensorBase_create
-        return NULL;
-    }
-    return (PyObject *)result;
-}
-
-static PyObject *PyTensorBase_add(PyObject *a, PyObject *b)
-{
-    // Valid types: PyTensorBase (with broadcastable dimensions), integers, floats
-    // TODO: just get types and compare?
-
-    if (!(can_math(a) && can_math(b)))
-    {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for addition.");
-        return NULL;
-    }
-
-    // PyTensorBase + (Long | Float)
-    if (PyTensorBase_Check(a) && PyFloatOrLong_Check(b))
-    {
-        return PyTensorBase_add_tensor_scalar((PyTensorBase *)a, PyFloatOrLong_asDouble(b));
-    }
-    // (Long | Float) + PyTensorBase
-    else if (PyFloatOrLong_Check(a) && PyTensorBase_Check(b))
-    {
-        return PyTensorBase_add_tensor_scalar((PyTensorBase *)b, PyFloatOrLong_asDouble(a));
-    }
-    // PyTensorBase + PyTensorBase
-    else if (PyTensorBase_Check(a) && PyTensorBase_Check(b))
-    {
-        return PyTensorBase_add_tensor_tensor((PyTensorBase *)a, (PyTensorBase *)b);
-    }
-    // Else invalid
-    else
-    {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for addition.");
-        return NULL;
-    }
-}
-
-static PyObject *PyTensorBase_div_scalar_tensor(scalar s, PyTensorBase *t)
-{
-    PyTensorBase *result = PyTensorBase_create(t->tb.shape);
-    if (!result)
-    {
-        // NOTE: error string set in PyTensorBase_create
-        return NULL;
-    }
-
-    TensorBase_div_scalar_tensor(s, &t->tb, &result->tb);
-    return (PyObject *)result;
-}
-
-static PyObject *PyTensorBase_divide(PyObject *a, PyObject *b)
-{
-    if (!(can_math(a) && can_math(b)))
-    {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for division.");
-        return NULL;
-    }
-
-    // (Long | Float) + PyTensorBase
-    if (PyFloatOrLong_Check(a) && PyTensorBase_Check(b))
-    {
-        return PyTensorBase_div_scalar_tensor(PyFloatOrLong_asDouble(a), (PyTensorBase *)b);
-    }
-    // Else invalid
-    else
-    {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for division.");
-        return NULL;
-    }
-}
-
-static PyObject *PyTensorBase_negate(PyObject *a)
-{
-    PyTensorBase *result = PyTensorBase_create(((PyTensorBase *)a)->tb.shape);
-    if (!result)
-    {
-        // NOTE: error string set in PyTensorBase_create
-        return NULL;
-    }
-
-    TensorBase_neg(&((PyTensorBase *)a)->tb, &result->tb);
-    return (PyObject *)result;
-}
-
-static PyObject *PyTensorBase_matrix_multiply(PyTensorBase *a, PyTensorBase *b)
-{
-    if (PyTensorBase_Check(a) && PyTensorBase_Check(b))
-    {
-        ShapeArray new_shape = {0};
-
-        if (TensorBase_get_matrix_multiplication_shape(&a->tb, &b->tb, &new_shape) < 0)
-        {
-            // printf("a->tb.shape: %ld, %ld\n", a->tb.shape[0], a->tb.shape[1]);
-            // printf("b->tb.shape: %ld, %ld\n", b->tb.shape[0], b->tb.shape[1]);
-            PyErr_SetString(PyExc_ValueError, "Incompatible shapes for matrix multiplication.");
-            return NULL;
-        }
-
-        PyTensorBase *result = PyTensorBase_create(new_shape);
-        if (!result)
-        {
-            // NOTE: error string set in PyTensorBase_create
-            return NULL;
-        }
-
-        TensorBase_matrix_multiply(&a->tb, &b->tb, &result->tb);
-        return (PyObject *)result;
-    }
-    // Else invalid
-    else
-    {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for addition.");
-        return NULL;
-    }
 }
 
 static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)
