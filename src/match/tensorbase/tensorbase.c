@@ -83,7 +83,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     if (td->data == NULL)
     {
         // Memory error.
-        return -1;
+        return -2;
     }
 
     // Calculate Tensorbase shape and number of elements.
@@ -94,7 +94,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         if (dim < 0)
         {
             // All dimensions must be >= 0 (-1 indicates no-dimension).
-            return -1;
+            return -3;
         }
         td->numel *= dim;
         td->shape[i] = dim;
@@ -459,7 +459,13 @@ int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) 
 int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -2; }
 int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
 
-int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }
+int TensorBase_fill_(TensorBase *in, scalar fill_value) {
+    if (in->data == NULL){
+        return -1;
+    }
+    memset(in->data, fill_value, sizeof(scalar)*in->numel);
+    return 0;
+}
 int TensorBase_randn_(TensorBase *in) { return -2; }
 
 int TensorBase_item(TensorBase *t, scalar *item) {
@@ -467,4 +473,5 @@ int TensorBase_item(TensorBase *t, scalar *item) {
         return -1;
     }
     *item = *(t->data);
+    return 0;
 }

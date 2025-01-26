@@ -257,7 +257,7 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj);
 
 static PyTypeObject PyTensorBaseType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
+        .tp_name = "tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
     .tp_basicsize = sizeof(PyTensorBase),
     .tp_itemsize = 0, /* For allocation */
 
@@ -617,16 +617,17 @@ static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args))
     return NULL;
 }
 
-static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args))
+{
     scalar item;
-    TensorBase *t = &((PyTensorBase*)self)->tb;
-    if (TensorBase_item(t, &item) < 0){
+    TensorBase *t = &((PyTensorBase *)self)->tb;
+    if (TensorBase_item(t, &item) < 0)
+    {
         PyErr_SetString(PyExc_NotImplementedError, "Not singleton or numel isn't 1!");
         return NULL;
     }
-    return PyLong_FromLong(item);
+    return PyFloat_FromDouble(item);
 }
-
 
 static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
 {
@@ -642,8 +643,20 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
 
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_fill_ is not implemented");
-    return NULL;
+    if (!PyFloatOrLong_Check(args))
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Must be a number!");
+        return NULL;
+    }
+    scalar fill_value = PyFloatOrLong_asDouble(args);
+    TensorBase *t = &((PyTensorBase *)self)->tb;
+    if (TensorBase_fill_(t, fill_value) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
+        return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
@@ -730,7 +743,8 @@ static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED
     return stride;
 }
 
-static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUSED(ignored)) {
+static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
+{
     PyObject *raw_data = PyList_New(self->tb.numel);
 
     for (long i = 0; i < self->tb.numel; i++)
@@ -759,12 +773,19 @@ static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
 
 static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 {
+    if (!(PyTuple_Size(args) == 1 && PyTuple_Check(PyTuple_GetItem(args, 0))))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected tuple.");
+        return -1;
+    }
+    PyObject *shape_array = PyTuple_GetItem(args, 0);
+
     // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
-    Py_ssize_t tuple_len = PyTuple_Size(args);
+    Py_ssize_t tuple_len = PyTuple_Size(shape_array);
 
     if (tuple_len > MAX_RANK)
     {
-        PyErr_SetString(PyExc_ValueError, "Tensor rank exceeds maximum allowed.");
+
         return -1;
     }
 
@@ -772,14 +793,24 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 
     for (long i = 0; i < tuple_len; i++)
     {
-        PyObject *item = PyTuple_GetItem(args, i);
-        if (!PyLong_Check(item))
+        PyObject *item = PyTuple_GetItem(shape_array, i);
+        if (item == NULL)
         {
-            PyErr_SetString(PyExc_ValueError, "Tensor dimensions must be integers.");
+            PyErr_SetString(PyExc_ValueError, "Failed to retrieve an item from the tuple.");
             return -1;
         }
 
-        tb_shape[i] = (long)PyLong_AsLong(item);
+        if (!PyLong_Check(item))
+        {
+            PyErr_SetString(PyExc_ValueError, "Tensor values must be integers!!");
+            return -1;
+        }
+
+        tb_shape[i] = PyLong_AsLong(item);
+        if (tb_shape[i] == -1 && PyErr_Occurred())
+        {
+            return -1;
+        }
     }
     // return the number of dimensions
     return (long)tuple_len;
@@ -788,15 +819,35 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {
     ShapeArray tb_shape;
-    long ndim = args_to_shape(args, tb_shape);
+    long ndim = 0;
+
+    if (kwds && PyDict_Size(kwds) > 0)
+    {
+        PyErr_SetString(PyExc_TypeError, "Tensor initialization does not accept keyword arguments.");
+        return -1;
+    }
+
+    ndim = args_to_shape(args, tb_shape);
     if (ndim < 0)
     {
         return -1;
     }
 
-    if (TensorBase_init(&self->tb, tb_shape, ndim) < 0)
+    // Initialize the tensor using TensorBase_init
+    int init_status = TensorBase_init(&self->tb, tb_shape, ndim);
+    if (init_status == -1)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor data.");
+        PyErr_SetString(PyExc_RuntimeError, "ndim is out of range.");
+        return -1;
+    }
+    else if (init_status == -2)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Memory Error with malloc.");
+        return -1;
+    }
+    else if (init_status == -3)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Negative dim.");
         return -1;
     }
 
