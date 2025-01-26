@@ -114,45 +114,45 @@ static PyMappingMethods PyTensorBase_mapping_methods = {
  *********************************************************/
 // Excludes all number methods.
 
-PyObject* PyTensorBase_abs_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_abs(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_cos_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_cos(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_sin_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_sin(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_tan_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_tan(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_tanh_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_tanh(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_log_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_log(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_exp_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_exp(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_sigmoid_(PyObject* self, PyObject* Py_UNUSED(args));
-PyObject* PyTensorBase_sigmoid(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_zero_(PyObject* self, PyObject* Py_UNUSED(args));
+static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args));
 
-PyObject* PyTensorBase_reshape_(PyObject* self, PyObject* args); 
-PyObject* PyTensorBase_reshape(PyObject* self, PyObject* args); 
+static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args);
+static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args);
 
-PyObject* PyTensorBase_fill_(PyObject* self, PyObject* args);
+static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args);
 
-PyObject* PyTensorBase_max(PyObject* self, PyObject* const *args, Py_ssize_t nargs);
-PyObject* PyTensorBase_min(PyObject* self, PyObject* const *args, Py_ssize_t nargs);
-PyObject* PyTensorBase_mean(PyObject* self, PyObject* const *args, Py_ssize_t nargs);
-PyObject* PyTensorBase_sum(PyObject* self, PyObject* const *args, Py_ssize_t nargs);
+static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 
-PyObject* PyTensorBase_broadcast_to(PyObject* self, PyObject* args);
-PyObject* PyTensorBase_permute(PyObject* self, PyObject* args);
-PyObject* PyTensorBase_transpose(PyObject* self, PyObject* args);
+static PyObject *PyTensorBase_broadcast_to(PyObject *self, PyObject *args);
+static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args);
+static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args);
 
 static PyMethodDef PyTensorBase_instance_methods[] = {
     // Methods with no arguments.
@@ -515,244 +515,166 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     return (PyObject *)result;
 }
 
-PyObject* PyTensorBase_abs_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_abs_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_abs(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_abs is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_cos_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_cos_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_cos(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_cos is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_sin_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sin_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_sin(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sin is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_tan_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tan_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_tan(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tan is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_tanh_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tanh_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_tanh(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tanh is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_log_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_log_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_log(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_log is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_exp_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_exp_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_exp(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_exp is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_sigmoid_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sigmoid_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_sigmoid(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sigmoid is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_zero_(PyObject* self, PyObject* Py_UNUSED(args)) {
+static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_zero_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_reshape_(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_reshape(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_fill_(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_fill_ is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_max(PyObject* self, PyObject* const *args, Py_ssize_t nargs) {
+static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_max is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_min(PyObject* self, PyObject* const *args, Py_ssize_t nargs) {
+static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_mean(PyObject* self, PyObject* const *args, Py_ssize_t nargs) {
+static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_mean is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_sum(PyObject* self, PyObject* const *args, Py_ssize_t nargs) {
+static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sum is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_broadcast_to(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_broadcast_to(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_broadcast_to is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_permute(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_permute is not implemented");
     return NULL;
 }
 
-PyObject* PyTensorBase_transpose(PyObject* self, PyObject* args) {
+static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args)
+{
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_transpose is not implemented");
     return NULL;
-}
-
-static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)
-{
-    ShapeArray tb_shape = {0};
-    if (args_to_shape(args, &tb_shape) < 0)
-    {
-        // NOTE: error message set in args_to_shape
-        return NULL;
-    }
-
-    PyTensorBase *new_tb = PyTensorBase_create(tb_shape);
-    // TODO: increment pointer?
-    if (new_tb == NULL)
-    {
-        // NOTE: error message set in PyTensorBase_create
-        return NULL;
-    }
-
-    for (long i = 0; i < new_tb->tb.numel; i++)
-    {
-        new_tb->tb.data[i] = 1;
-    }
-
-    return new_tb;
-}
-
-static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
-{
-    ShapeArray tb_shape = {0};
-    if (args_to_shape(args, &tb_shape) < 0)
-    {
-        // NOTE: error message set in args_to_shape
-        return NULL;
-    }
-
-    PyTensorBase *new_tb = PyTensorBase_create(tb_shape);
-    if (new_tb == NULL)
-    {
-        // NOTE: error message set in PyTensorBase_create
-        return NULL;
-    }
-
-    TensorBase_randn(&new_tb->tb, 0, 1);
-
-    return new_tb;
-}
-
-static int args_to_shape(PyObject *args, ShapeArray *tb_shape)
-{
-    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
-    Py_ssize_t tuple_len = PyTuple_Size(args);
-
-    if (tuple_len == 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Tensor must have at least one value.");
-        return -1;
-    }
-
-    if (tuple_len > MAX_RANK)
-    {
-        PyErr_SetString(PyExc_ValueError, "Tensor rank exceeds maximum allowed.");
-        return -1;
-    }
-
-    memset(tb_shape, 0, sizeof(ShapeArray));
-
-    for (long i = 0; i < tuple_len; i++)
-    {
-        PyObject *item = PyTuple_GetItem(args, i);
-        if (!PyLong_Check(item))
-        {
-            PyErr_SetString(PyExc_ValueError, "Tensor dimensions must be integers.");
-            return -1;
-        }
-
-        (*tb_shape)[i] = PyLong_AsLong(item);
-    }
-
-    return 1;
-}
-
-static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
-{
-
-    ShapeArray tb_shape = {0};
-    if (args_to_shape(args, &tb_shape) < 0)
-    {
-        // NOTE: error message set in args_to_shape
-        return -1;
-    }
-
-    if (TensorBase_init(&self->tb, tb_shape) < 0)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor data.");
-        return -1;
-    }
-
-    return 0;
-}
-
-static void PyTensorBase_dealloc(PyTensorBase *self)
-{
-    TensorBase_dealloc(&self->tb);
-    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static PyObject *PyTensorBase_get_dim(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
@@ -774,6 +696,91 @@ static PyObject *PyTensorBase_get_size(PyTensorBase *self, PyObject *Py_UNUSED(i
     }
 
     return shape;
+}
+
+static PyObject *PyTensorBase_get_numel(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
+{
+    return PyLong_FromLong(self->tb.numel);
+}
+
+static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
+{
+    PyObject *stride = PyTuple_New(self->tb.ndim);
+
+    for (long i = 0; i < self->tb.ndim; i++)
+    {
+        if (PyTuple_SetItem(stride, i, PyLong_FromLong(self->tb.stride[i])))
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set stride item.");
+            return NULL;
+        }
+    }
+
+    return stride;
+}
+
+static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)
+{
+    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
+    return NULL;
+}
+
+static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
+{
+    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
+    return NULL;
+}
+
+static long args_to_shape(PyObject *args, ShapeArray *tb_shape)
+{
+    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
+    Py_ssize_t tuple_len = PyTuple_Size(args);
+
+    if (tuple_len > MAX_RANK)
+    {
+        PyErr_SetString(PyExc_ValueError, "Tensor rank exceeds maximum allowed.");
+        return -1;
+    }
+
+    memset(tb_shape, -1, sizeof(ShapeArray));
+
+    for (long i = 0; i < tuple_len; i++)
+    {
+        PyObject *item = PyTuple_GetItem(args, i);
+        if (!PyLong_Check(item))
+        {
+            PyErr_SetString(PyExc_ValueError, "Tensor dimensions must be integers.");
+            return -1;
+        }
+
+        *(tb_shape + i) = PyLong_AsLong(item);
+    }
+    // return the number of dimensions
+    return (long)tuple_len;
+}
+
+static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
+{
+    ShapeArray tb_shape = {0};
+    long ndim = args_to_shape(args, &tb_shape);
+    if (ndim < 0)
+    {
+        return -1;
+    }
+
+    if (TensorBase_init(&self->tb, tb_shape, ndim) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to initialize tensor data.");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void PyTensorBase_dealloc(PyTensorBase *self)
+{
+    TensorBase_dealloc(&self->tb);
+    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static PyObject *PyTensorBase_str(PyTensorBase *obj)
