@@ -40,7 +40,7 @@ static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c);
 static PyObject *PyTensorBase_nb_negative(PyObject *a);
-static PyObject *PyTensorBase_nb_positive(PyObject *a);
+// static PyObject *PyTensorBase_nb_positive(PyObject *a);
 static PyObject *PyTensorBase_nb_absolute(PyObject *a);
 
 // https://docs.python.org/3/c-api/typeobj.html#number-object-structures
@@ -54,8 +54,8 @@ static PyNumberMethods PyTensorBase_as_number = {
     // .nb_divmod = 0,
     .nb_matrix_multiply = (binaryfunc)PyTensorBase_matrix_multiply,
     .nb_power = (ternaryfunc)PyTensorBase_nb_power,
-    .nb_negative = (unaryfunc)PyTensorBase_nb_negate,
-    .nb_positive = (unaryfunc)PyTensorBase_nb_positive,
+    .nb_negative = (unaryfunc)PyTensorBase_nb_negative,
+    // .nb_positive = 0,
     .nb_absolute = (unaryfunc)PyTensorBase_nb_absolute,
     // .nb_invert = 0,
     // .nb_lshift = 0,
@@ -188,11 +188,11 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"fill_", (PyCFunction)PyTensorBase_fill_, METH_O, "In-place fill."},
 
-    {"max", (PyCFunctionFast)PyTensorBase_max, METH_FASTCALL, "Compute the maximum value."},
-    {"min", (PyCFunctionFast)PyTensorBase_min, METH_FASTCALL, "Compute the minimum value."},
-
-    {"mean", (PyCFunctionFast)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
-    {"sum", (PyCFunctionFast)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
+    {"max", (PyCFunction)PyTensorBase_max, METH_FASTCALL, "Compute the maximum value."},
+    {"min", (PyCFunction)PyTensorBase_min, METH_FASTCALL, "Compute the minimum value."},
+    // (PyCFunctionFast)
+    {"mean", (PyCFunction)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
+    {"sum", (PyCFunction)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
 
     {"broadcast_to", (PyCFunction)PyTensorBase_broadcast_to, METH_O, "Broadcast the array to a new shape."},
     {"permute", (PyCFunction)PyTensorBase_permute, METH_O, "Permute the dimensions of the array."},
@@ -221,8 +221,8 @@ static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED
 static PyGetSetDef PyTensorBase_getset[] = {
     {"dim", (getter)PyTensorBase_get_dim, NULL, "Gets tensor rank", NULL},
     {"size", (getter)PyTensorBase_get_size, NULL, "Tensor shape", NULL},
-    {"numel", (getter)PyTensorBase_get_size, NULL, "Number of elements in Tensor", NULL},
-    {"stride", (getter)PyTensorBase_get_size, NULL, "Strides of tensor", NULL},
+    {"numel", (getter)PyTensorBase_get_numel, NULL, "Number of elements in Tensor", NULL},
+    {"stride", (getter)PyTensorBase_get_stride, NULL, "Strides of tensor", NULL},
     {NULL} /* Sentinel */
 };
 
@@ -250,8 +250,8 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj);
  *********************************************************/
 
 static PyTypeObject PyTensorBaseType = {
-    PyVarObject_HEAD_INIT(NULL, 0),
-    .tp_name = "match.tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "tensorbase.TensorBase", /* For printing, in format "<module>.<name>" */
     .tp_basicsize = sizeof(PyTensorBase),
     .tp_itemsize = 0, /* For allocation */
 
@@ -271,7 +271,7 @@ static PyTypeObject PyTensorBaseType = {
     /* More standard operations (here for binary compatibility) */
     // .tp_hash = 0,
     // .tp_call = 0,
-    .tp_str = PyTensorBase_str,
+    .tp_str = (reprfunc)PyTensorBase_str,
     // .tp_getattro = 0,
     // .tp_setattro = 0,
 
@@ -335,7 +335,7 @@ static PyTypeObject PyTensorBaseType = {
 
 static PyModuleDef TensorBaseModule = {
     .m_base = PyModuleDef_HEAD_INIT,
-    .m_name = "match.tensorbase",
+    .m_name = "tensorbase",
     .m_doc = PyDoc_STR("TODO: docs"),
     .m_size = -1,
     .m_methods = PyTensorBase_class_methods,
@@ -380,11 +380,6 @@ static long PyFloatOrLong_Check(PyObject *obj)
     return PyLong_Check(obj) || PyFloat_Check(obj);
 }
 
-static long can_math(PyObject *obj)
-{
-    return PyFloatOrLong_Check(obj) || PyTensorBase_Check(obj);
-}
-
 static scalar PyFloatOrLong_asDouble(PyObject *obj)
 {
     if (PyLong_Check(obj))
@@ -394,7 +389,7 @@ static scalar PyFloatOrLong_asDouble(PyObject *obj)
     return PyFloat_AsDouble(obj);
 }
 
-static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
+// static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
 
 static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar))
 {
@@ -447,7 +442,7 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scal
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar, scalar))
+static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar))
 {
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
@@ -466,7 +461,7 @@ static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scala
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_nb_unary_operation_inpalce(PyObject *a, scalar (*op)(scalar, scalar))
+static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, scalar (*op)(scalar))
 {
     // Assumes input PyObject is already of type PyTensorBase.
     TensorBase *in = &(((PyTensorBase *)a)->tb);
@@ -485,7 +480,6 @@ static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return
 static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
 static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *Py_UNUSED(ignored)) { return PyTensorBase_nb_binary_operation(a, b, scalar_power); }
 static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
-static PyObject *PyTensorBase_nb_positive(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_positive); }
 static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
 static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
 {
@@ -709,7 +703,7 @@ static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED
 
     for (long i = 0; i < self->tb.ndim; i++)
     {
-        if (PyTuple_SetItem(stride, i, PyLong_FromLong(self->tb.stride[i])))
+        if (PyTuple_SetItem(stride, i, PyLong_FromLong(self->tb.strides[i])))
         {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set stride item.");
             return NULL;
@@ -731,7 +725,7 @@ static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
     return NULL;
 }
 
-static long args_to_shape(PyObject *args, ShapeArray *tb_shape)
+static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 {
     // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
     Py_ssize_t tuple_len = PyTuple_Size(args);
@@ -753,7 +747,7 @@ static long args_to_shape(PyObject *args, ShapeArray *tb_shape)
             return -1;
         }
 
-        *(tb_shape + i) = PyLong_AsLong(item);
+        tb_shape[i] = (long)PyLong_AsLong(item);
     }
     // return the number of dimensions
     return (long)tuple_len;
@@ -761,8 +755,8 @@ static long args_to_shape(PyObject *args, ShapeArray *tb_shape)
 
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {
-    ShapeArray tb_shape = {0};
-    long ndim = args_to_shape(args, &tb_shape);
+    ShapeArray tb_shape;
+    long ndim = args_to_shape(args, tb_shape);
     if (ndim < 0)
     {
         return -1;

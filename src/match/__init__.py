@@ -4,7 +4,6 @@
 from math import prod
 from random import gauss
 from .tensor import Tensor, use_numpy
-from .tensorbase import TensorBase
 import numpy as np
 
 if use_numpy:

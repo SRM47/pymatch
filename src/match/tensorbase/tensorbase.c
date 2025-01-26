@@ -1,3 +1,8 @@
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "tensorbase.h"
 
 /*********************************************************
@@ -36,7 +41,7 @@ typedef struct
 
 // Box-Muller method for generating normally distributed random numbers.
 // https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform#C++
-randn_pair randn(scalar mu, scalar sigma)
+static randn_pair randn(scalar mu, scalar sigma)
 {
     scalar two_pi = 2.0 * M_PI;
 
@@ -61,7 +66,7 @@ randn_pair randn(scalar mu, scalar sigma)
  *                    Alloc & Dealloc                    *
  *********************************************************/
 
-static int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
+int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 {
     if (ndim > MAX_RANK || ndim < 0)
     {
@@ -114,7 +119,7 @@ static int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     return 0;
 }
 
-static void TensorBase_dealloc(TensorBase *td)
+void TensorBase_dealloc(TensorBase *td)
 {
     if (td->data != NULL)
     {
@@ -125,6 +130,20 @@ static void TensorBase_dealloc(TensorBase *td)
     td->ndim = 0;
     memset(td->shape, 0, sizeof(ShapeArray));
     memset(td->strides, 0, sizeof(StrideArray));
+}
+
+/*********************************************************
+ *                        Utility                        *
+ *********************************************************/
+
+static inline int TensorBase_is_singleton(TensorBase *t)
+{
+    return t->ndim == 0 && t->numel == 1;
+}
+
+static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape)
+{
+    return memcmp(a_shape, b_shape, MAX_RANK);
 }
 
 static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
@@ -143,20 +162,6 @@ static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
     memcpy(out->shape, in->shape, sizeof(in->shape));
     memcpy(out->strides, in->strides, sizeof(in->strides));
     return 0;
-}
-
-/*********************************************************
- *                        Utility                        *
- *********************************************************/
-
-static inline int TensorBase_is_singleton(TensorBase *t)
-{
-    return t->ndim == 0 && t->numel == 1;
-}
-
-static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape)
-{
-    return memcmp(a_shape, b_shape, MAX_RANK);
 }
 
 /*********************************************************
@@ -245,13 +250,17 @@ static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, 
     return 0;
 }
 // TODO: Implement
-static int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out) { return -2; }
+int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out)
+{
+
+    return -2;
+}
 
 /*********************************************************
  *                    Linear Algebra                     *
  *********************************************************/
 
-static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, scalar (*op)(scalar, scalar))
+int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, scalar (*op)(scalar, scalar))
 {
     // Check if a is a singleton.
     if (TensorBase_is_singleton(a))
@@ -268,7 +277,7 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
     }
 
     // Check if the two tensorbase structures don't have the same dimensions
-    if (Tensorbase_same_shape(a->shape, b->shape))
+    if (TensorBase_compare_shape(a->shape, b->shape))
     {
         // They have the same shape.
         if (TensorBase_create_empty_like(a, out) == -1)
@@ -332,7 +341,7 @@ static int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
     return 0;
 }
 
-static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
+int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
 {
     if (TensorBase_create_empty_like(a, out) == -1)
     {
@@ -345,7 +354,7 @@ static int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, Tenso
     return 0;
 }
 
-static int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
+int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
 {
     if (TensorBase_create_empty_like(a, out) == -1)
     {
@@ -358,7 +367,7 @@ static int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, Tenso
     return 0;
 }
 
-static int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
+int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
 {
     if (in->data == NULL)
     {
@@ -371,7 +380,7 @@ static int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
     return 0;
 }
 
-static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar))
+int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar))
 {
     if (TensorBase_create_empty_like(in, out) == -1)
     {
@@ -384,18 +393,8 @@ static int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(sca
     return 0;
 }
 
-static inline scalar scalar_add(scalar a, scalar b) { return a + b; }
-static inline scalar scalar_sub(scalar a, scalar b) { return a - b; }
-static inline scalar scalar_mult(scalar a, scalar b) { return a * b; }
-static inline scalar scalar_floordiv(scalar a, scalar b);
-static inline scalar scalar_truediv(scalar a, scalar b) { return a / b; }
-static inline scalar scalar_power(scalar a, scalar b) { return pow(a, b); }
-static inline scalar scalar_negative(scalar a) { return -1 * a; }
-static inline scalar scalar_positive(scalar a);
-static inline scalar scalar_absolute(scalar a) { return abs(a); }
-
 // TODO: Implement
-static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out)
+int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out)
 {
     return -2;
     // TODO: relax the requirement for 2D tensors
@@ -416,7 +415,7 @@ static int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase 
 }
 
 // TODO: Implement
-static int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
+int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     return -2;
 
@@ -434,22 +433,31 @@ static int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *
     }
 }
 
+scalar scalar_add(scalar a, scalar b) { return a + b; }
+scalar scalar_sub(scalar a, scalar b) { return a - b; }
+scalar scalar_mult(scalar a, scalar b) { return a * b; }
+scalar scalar_floordiv(scalar a, scalar b) { return floor(a / b); }
+scalar scalar_truediv(scalar a, scalar b) { return a / b; }
+scalar scalar_power(scalar a, scalar b) { return pow(a, b); }
+scalar scalar_negative(scalar a) { return -a; }
+scalar scalar_absolute(scalar a) { return fabs(a); }
+
 /*********************************************************
  *                      Aggregation                      *
  *********************************************************/
 
 // TODO: Implement
-static int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar *, long)) { return -2; }
+int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar *, long)) { return -2; }
 
 /*********************************************************
  *                     Manipulation                      *
  *********************************************************/
 
-static int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -2; }
-static int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -2; }
+int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -2; }
+int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -2; }
 
-static int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -2; }
-static int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
+int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -2; }
+int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
 
-static int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }
-static int TensorBase_randn_(TensorBase *in) { return -2; }
+int TensorBase_fill_(TensorBase *in, scalar fill_value) { return -2; }
+int TensorBase_randn_(TensorBase *in) { return -2; }

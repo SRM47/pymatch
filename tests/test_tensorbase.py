@@ -1,9 +1,9 @@
 import unittest
 import torch
-from match.tensordata import TensorData
 from .base import BaseUnitTest
 import itertools
-from match import prod, TensorBase
+from match import prod
+from match.tensorbase import TensorBase
 import operator
 from typing import Callable
 from random import gauss
