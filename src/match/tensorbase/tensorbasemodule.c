@@ -641,6 +641,8 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
     return NULL;
 }
 
+
+
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
 {
     if (!PyFloatOrLong_Check(args))
@@ -649,14 +651,24 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
         return NULL;
     }
     scalar fill_value = PyFloatOrLong_asDouble(args);
+
+    printf("Value of d = %f\n", fill_value);
+
+    if (PyErr_Occurred())
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error fill value");
+        return NULL;
+    }
+
     TensorBase *t = &((PyTensorBase *)self)->tb;
+    print_double_list(t->data, t->numel);
     if (TensorBase_fill_(t, fill_value) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
         return NULL;
     }
-    Py_INCREF(Py_None);
-    return Py_None;
+    print_double_list(t->data, t->numel);
+    Py_RETURN_NONE;
 }
 
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
@@ -785,11 +797,13 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 
     if (tuple_len > MAX_RANK)
     {
-
         return -1;
     }
 
-    memset(tb_shape, -1, sizeof(ShapeArray));
+    for (size_t i = 0; i < MAX_RANK; i++)
+    {
+        tb_shape[i] = -1.0;
+    }
 
     for (long i = 0; i < tuple_len; i++)
     {
