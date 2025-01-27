@@ -112,7 +112,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     printf("\n~~Shape~~\n");
     print_long_list(td->shape, MAX_RANK);
     printf("\n~~NUMEL~~\n");
-    printf("%d", td->numel);
+    printf("%d\n", td->numel);
 
     return 0;
 }
@@ -178,24 +178,71 @@ static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
 /*********************************************************
  *                     String Methods                    *
  *********************************************************/
-// TODO: Turn into stringify
-void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size)
-{
-    int bytes_written = snprintf(buffer, buffer_size, "[");
-    buffer_size -= bytes_written;
-    buffer += bytes_written;
 
-    for (size_t index = 0; index < td->numel && buffer_size > 0; index++)
+static void TensorBase_to_string_helper(TensorBase *tb, long curr_dim, long data_index, long *spaces, int print)
+{
+    // if previous char wasa  newline, print spaces according to # of [ - # of ] in previous line.
+    if (print)
     {
-        const char *sep = index < td->numel - 1 ? ", " : "";
-        bytes_written = snprintf(buffer, buffer_size, "%f%s", td->data[index], sep);
-        buffer_size -= bytes_written;
-        buffer += bytes_written;
+        long num_spaces = *spaces;
+        printf("%d", num_spaces);
+        for (long i = 0; i < num_spaces; i++)
+        {
+            printf("[]");
+        }
     }
 
-    // TODO: Check for buffer overflow.
-    snprintf(buffer, buffer_size, "]");
+    if (curr_dim >= tb->ndim - 1)
+    {
+        printf("[");
+        long i = 0;
+        for (; i < tb->shape[curr_dim] - 1; i++)
+        {
+            printf("%.2f,", tb->data[data_index + i]);
+        }
+        printf("%.2f", tb->data[data_index + i]);
+        printf("]");
+        return;
+    }
+
+    printf("[");
+    *spaces += 1;
+    int should_print = 0;
+    long i = 0;
+    for (; i < tb->shape[curr_dim] - 1; i++)
+    {
+        TensorBase_to_string_helper(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
+        printf(",\n");
+        should_print = 1;
+    }
+    TensorBase_to_string_helper(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
+    printf("]");
+    *spaces -= 1;
 }
+
+void TensorBase_to_string(TensorBase *td)
+{
+    int spaces = 0;
+    TensorBase_to_string_helper(td, 0, 0, &spaces, 0);
+}
+
+// void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size)
+// {
+//     int bytes_written = snprintf(buffer, buffer_size, "[");
+//     buffer_size -= bytes_written;
+//     buffer += bytes_written;
+
+//     for (size_t index = 0; index < td->numel && buffer_size > 0; index++)
+//     {
+//         const char *sep = index < td->numel - 1 ? ", " : "";
+//         bytes_written = snprintf(buffer, buffer_size, "%f%s", td->data[index], sep);
+//         buffer_size -= bytes_written;
+//         buffer += bytes_written;
+//     }
+
+//     // TODO: Check for buffer overflow.
+//     snprintf(buffer, buffer_size, "]");
+// }
 
 /*********************************************************
  *                     Braodcasting                      *

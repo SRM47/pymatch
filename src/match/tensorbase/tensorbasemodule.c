@@ -875,9 +875,12 @@ static void PyTensorBase_dealloc(PyTensorBase *self)
 static PyObject *PyTensorBase_str(PyTensorBase *obj)
 {
     // TODO: calculate a reasonable buffer size
-    char *str_buffer = malloc(100 * sizeof(char));
+    char *str_buffer = malloc(1 * sizeof(char));
+    *str_buffer = '.';
 
-    TensorBase_to_string(&obj->tb, str_buffer, 100 * sizeof(char));
+    // TensorBase_to_string(&obj->tb, str_buffer, 100 * sizeof(char));
 
+    
+    TensorBase_to_string(&obj->tb);
     return Py_BuildValue("s", str_buffer);
 }

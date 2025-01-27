@@ -42,7 +42,8 @@ EXPORT void TensorBase_dealloc(TensorBase *tb);
  *                     String Methods                    *
  *********************************************************/
 
-EXPORT void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size);
+// EXPORT void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size);
+EXPORT void TensorBase_to_string(TensorBase *td);
 
 /*********************************************************
  *                     Braodcasting                      *
