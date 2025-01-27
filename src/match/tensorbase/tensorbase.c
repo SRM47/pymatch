@@ -14,25 +14,6 @@ static inline long max_long(long a, long b)
     return a > b ? a : b;
 }
 
-static void index_to_indices(long index, ShapeArray shape, long ndim, IndexArray out)
-{
-    for (long i = ndim - 1; i >= 0; i--)
-    {
-        out[i] = index % shape[i];
-        index /= shape[i];
-    }
-}
-
-static long indices_to_index(IndexArray indices, StrideArray strides, long ndim)
-{
-    long index = 0;
-    for (long i = 0; i < ndim; i++)
-    {
-        index += indices[i] * strides[i];
-    }
-    return index;
-}
-
 typedef struct
 {
     scalar a;
@@ -119,7 +100,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         // Memory error.
         return -2;
     }
-    
+
     printf("\n~~EXPECTED Shape~~\n");
     print_long_list(shape, MAX_RANK);
     printf("\n~~EXPECTED NDIM~~\n");
@@ -138,14 +119,20 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 
 void TensorBase_dealloc(TensorBase *td)
 {
+    if (td == NULL)
+    {
+        return;
+    }
+
     if (td->data != NULL)
     {
         free(td->data);
+        td->data = NULL;
     }
-    td->data = NULL;
+
     td->numel = 0;
     td->ndim = 0;
-    // memset usage is OK with value is 0.
+    // Use memset to zero out shape and strides arrays safely.
     memset(td->shape, 0, MAX_RANK * sizeof(long));
     memset(td->strides, 0, MAX_RANK * sizeof(long));
 }
@@ -166,9 +153,15 @@ static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shap
 
 static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
 {
+    if (in == NULL || out == NULL)
+    {
+        return -1; // Invalid input or output tensor
+    }
+
     if (out->data != NULL)
     {
         free(out->data);
+        out->data = NULL;
     }
     out->data = (scalar *)malloc(in->numel * sizeof(scalar));
     if (out->data == NULL)

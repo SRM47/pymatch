@@ -641,8 +641,6 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
     return NULL;
 }
 
-
-
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
 {
     if (!PyFloatOrLong_Check(args))
