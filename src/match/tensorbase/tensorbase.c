@@ -44,6 +44,53 @@ static randn_pair randn(scalar mu, scalar sigma)
 }
 
 /*********************************************************
+ *                        Utility                        *
+ *********************************************************/
+
+static inline int TensorBase_is_singleton(TensorBase *t)
+{
+    return t->ndim == 0;
+}
+
+static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape)
+{
+    return memcmp(a_shape, b_shape, MAX_RANK * sizeof(long)) == 0;
+}
+
+static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
+{
+    if (in == NULL || out == NULL)
+    {
+        return -1; // Invalid input or output tensor
+    }
+
+    if (out->data != NULL)
+    {
+        free(out->data);
+        out->data = NULL;
+    }
+
+    if (!TensorBase_is_singleton(in))
+    {
+        out->data = (scalar *)malloc(in->numel * sizeof(scalar));
+        if (out->data == NULL)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        out->data = in->data;
+    }
+
+    out->numel = in->numel;
+    out->ndim = in->ndim;
+    memcpy(out->shape, in->shape, MAX_RANK * sizeof(long));
+    memcpy(out->strides, in->strides, MAX_RANK * sizeof(long));
+    return 0;
+}
+
+/*********************************************************
  *                    Alloc & Dealloc                    *
  *********************************************************/
 
@@ -94,25 +141,17 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     }
 
     // Allocate the memory, but do not initialize it's values.
-    td->data = (scalar *)malloc(td->numel * sizeof(scalar));
-    if (td->data == NULL)
+    // If TensorBase is singleton, the data pointer will hold the value
+    // instead of pointing to a one element array.
+    if (ndim != 0)
     {
-        // Memory error.
-        return -2;
+        td->data = (scalar *)malloc(td->numel * sizeof(scalar));
+        if (td->data == NULL)
+        {
+            // Memory error.
+            return -2;
+        }
     }
-
-    printf("\n~~EXPECTED Shape~~\n");
-    print_long_list(shape, MAX_RANK);
-    printf("\n~~EXPECTED NDIM~~\n");
-    printf("%d", ndim);
-    printf("\n~~NDIM~~\n");
-    printf("%d", td->ndim);
-    printf("\n~~Strides~~\n");
-    print_long_list(td->strides, MAX_RANK);
-    printf("\n~~Shape~~\n");
-    print_long_list(td->shape, MAX_RANK);
-    printf("\n~~NUMEL~~\n");
-    printf("%d\n", td->numel);
 
     return 0;
 }
@@ -124,12 +163,15 @@ void TensorBase_dealloc(TensorBase *td)
         return;
     }
 
-    if (td->data != NULL)
+    // Only free the pointer if not singleton.
+    // Sington tensor structs do not point to address on heap,
+    // rather directly store data in the pointer variable.
+    if (td->data != NULL && !TensorBase_is_singleton(td))
     {
         free(td->data);
-        td->data = NULL;
     }
 
+    td->data = NULL;
     td->numel = 0;
     td->ndim = 0;
     // Use memset to zero out shape and strides arrays safely.
@@ -138,57 +180,18 @@ void TensorBase_dealloc(TensorBase *td)
 }
 
 /*********************************************************
- *                        Utility                        *
- *********************************************************/
-
-static inline int TensorBase_is_singleton(TensorBase *t)
-{
-    return t->ndim == 0 && t->numel == 1;
-}
-
-static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape)
-{
-    return memcmp(a_shape, b_shape, MAX_RANK * sizeof(long)) == 0;
-}
-
-static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
-{
-    if (in == NULL || out == NULL)
-    {
-        return -1; // Invalid input or output tensor
-    }
-
-    if (out->data != NULL)
-    {
-        free(out->data);
-        out->data = NULL;
-    }
-    out->data = (scalar *)malloc(in->numel * sizeof(scalar));
-    if (out->data == NULL)
-    {
-        return -1;
-    }
-    out->numel = in->numel;
-    out->ndim = in->ndim;
-    memcpy(out->shape, in->shape, MAX_RANK * sizeof(long));
-    memcpy(out->strides, in->strides, MAX_RANK * sizeof(long));
-    return 0;
-}
-
-/*********************************************************
  *                     String Methods                    *
  *********************************************************/
 
-static void TensorBase_to_string_helper(TensorBase *tb, long curr_dim, long data_index, long *spaces, int print)
+static void TensorBase_to_string_data(TensorBase *tb, long curr_dim, long data_index, long *spaces, int print)
 {
     // if previous char wasa  newline, print spaces according to # of [ - # of ] in previous line.
     if (print)
     {
-        long num_spaces = *spaces;
-        printf("%d", num_spaces);
-        for (long i = 0; i < num_spaces; i++)
+
+        for (long i = 0; i < *spaces; i++)
         {
-            printf("[]");
+            printf(" ");
         }
     }
 
@@ -211,38 +214,49 @@ static void TensorBase_to_string_helper(TensorBase *tb, long curr_dim, long data
     long i = 0;
     for (; i < tb->shape[curr_dim] - 1; i++)
     {
-        TensorBase_to_string_helper(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
+        TensorBase_to_string_data(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
         printf(",\n");
         should_print = 1;
     }
-    TensorBase_to_string_helper(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
+    TensorBase_to_string_data(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
     printf("]");
     *spaces -= 1;
 }
 
-void TensorBase_to_string(TensorBase *td)
+static void TensorBase_to_string_attributes(TensorBase *tb)
 {
-    int spaces = 0;
-    TensorBase_to_string_helper(td, 0, 0, &spaces, 0);
+    printf("ndim: %d, numel: %d, ", tb->ndim, tb->numel);
+    printf("shape: (");
+    for (long i = 0; i < tb->ndim; i++)
+    {
+        printf("%d,", tb->shape[i]);
+    }
+    printf("), ");
+    printf("strides: (");
+    for (long i = 0; i < tb->ndim; i++)
+    {
+        printf("%d,", tb->strides[i]);
+    }
+    printf(")\n");
 }
 
-// void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size)
-// {
-//     int bytes_written = snprintf(buffer, buffer_size, "[");
-//     buffer_size -= bytes_written;
-//     buffer += bytes_written;
-
-//     for (size_t index = 0; index < td->numel && buffer_size > 0; index++)
-//     {
-//         const char *sep = index < td->numel - 1 ? ", " : "";
-//         bytes_written = snprintf(buffer, buffer_size, "%f%s", td->data[index], sep);
-//         buffer_size -= bytes_written;
-//         buffer += bytes_written;
-//     }
-
-//     // TODO: Check for buffer overflow.
-//     snprintf(buffer, buffer_size, "]");
-// }
+void TensorBase_to_string(TensorBase *tb)
+{
+    if (TensorBase_is_singleton(tb))
+    {
+        scalar value;
+        memcpy(&value, &(tb->data), sizeof(scalar));
+        printf("Tensor(%.2f)", value);
+    }
+    else
+    {
+        printf("Tensor(");
+        long spaces = 7;
+        TensorBase_to_string_data(tb, 0, 0, &spaces, 0);
+        printf(")\n");
+    }
+    TensorBase_to_string_attributes(tb);
+}
 
 /*********************************************************
  *                     Braodcasting                      *
@@ -313,7 +327,6 @@ static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, 
 // TODO: Implement
 int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out)
 {
-
     return -2;
 }
 
@@ -370,14 +383,16 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
     // Check if a is a singleton.
     if (TensorBase_is_singleton(a))
     {
-        scalar s = *(a->data);
+        scalar s;
+        memcpy(&s, &(a->data), sizeof(scalar));
         return TensorBase_binary_op_scalar_tensorbase(b, s, out, op);
     }
 
     // Check if b is a singleton.
     if (TensorBase_is_singleton(b))
     {
-        scalar s = *(b->data);
+        scalar s;
+        memcpy(&s, &(b->data), sizeof(scalar));
         return TensorBase_binary_op_tensorbase_scalar(a, s, out, op);
     }
 
@@ -462,9 +477,22 @@ int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *
     {
         return -1;
     }
-    for (long i = 0; i < out->numel; i++)
+    if (TensorBase_is_singleton(a))
     {
-        out->data[i] = op(a->data[i], s);
+        // Copy the bits of a->data into a_value.
+        scalar a_value;
+        memcpy(&a_value, &(a->data), sizeof(scalar));
+        // Compute the result of the operator.
+        scalar result = op(a_value, s);
+        // Copy the bits of result into out->data.
+        memcpy(&(out->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < out->numel; i++)
+        {
+            out->data[i] = op(a->data[i], s);
+        }
     }
     return 0;
 }
@@ -475,9 +503,22 @@ int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *
     {
         return -1;
     }
-    for (long i = 0; i < out->numel; i++)
+    if (TensorBase_is_singleton(a))
     {
-        out->data[i] = op(s, a->data[i]);
+        // Copy the bits of a->data into a_value.
+        scalar a_value;
+        memcpy(&a_value, &(a->data), sizeof(scalar));
+        // Compute the result of the operator.
+        scalar result = op(s, a_value);
+        // Copy the bits of result into out->data.
+        memcpy(&(out->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < out->numel; i++)
+        {
+            out->data[i] = op(s, a->data[i]);
+        }
     }
     return 0;
 }
@@ -488,9 +529,19 @@ int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
     {
         return -1;
     }
-    for (long i = 0; i < in->numel; i++)
+    if (TensorBase_is_singleton(in))
     {
-        in->data[i] = op(in->data[i]);
+        scalar in_value;
+        memcpy(&in_value, &(in->data), sizeof(scalar));
+        scalar result = op(in_value);
+        memcpy(&(in->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < in->numel; i++)
+        {
+            in->data[i] = op(in->data[i]);
+        }
     }
     return 0;
 }
@@ -501,9 +552,19 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar))
     {
         return -1;
     }
-    for (long i = 0; i < out->numel; i++)
+    if (TensorBase_is_singleton(in))
     {
-        out->data[i] = op(in->data[i]);
+        scalar in_value;
+        memcpy(&in_value, &(in->data), sizeof(scalar));
+        scalar result = op(in_value);
+        memcpy(&(out->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < out->numel; i++)
+        {
+            out->data[i] = op(in->data[i]);
+        }
     }
     return 0;
 }
@@ -576,15 +637,23 @@ int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { retu
 
 int TensorBase_fill_(TensorBase *in, scalar fill_value)
 {
+    if (TensorBase_is_singleton(in))
+    {
+        memcpy(&(in->data), &fill_value, sizeof(scalar));
+        return 0;
+    }
+
     if (in->data == NULL)
     {
         return -1;
     }
+
     // Don't use memset for doubles/floats. Only for chars.
     for (long i = 0; i < in->numel; i++)
     {
         in->data[i] = fill_value;
     }
+
     return 0;
 }
 int TensorBase_randn_(TensorBase *in) { return -2; }
@@ -595,6 +664,15 @@ int TensorBase_item(TensorBase *t, scalar *item)
     {
         return -1;
     }
-    *item = *(t->data);
+
+    if (TensorBase_is_singleton(t))
+    {
+        memcpy(item, &(t->data), sizeof(scalar));
+    }
+    else
+    {
+        *item = *(t->data);
+    }
+
     return 0;
 }

@@ -659,13 +659,11 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
     }
 
     TensorBase *t = &((PyTensorBase *)self)->tb;
-    print_double_list(t->data, t->numel);
     if (TensorBase_fill_(t, fill_value) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
         return NULL;
     }
-    print_double_list(t->data, t->numel);
     Py_RETURN_NONE;
 }
 

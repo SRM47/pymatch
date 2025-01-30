@@ -3,7 +3,8 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/usr/local/Caskroom/miniforge/base/envs/pymatch313/include/python3.13"
             ],
             "defines": [],
             "macFrameworkPath": [
