@@ -650,8 +650,6 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
     }
     scalar fill_value = PyFloatOrLong_asDouble(args);
 
-    printf("Value of d = %f\n", fill_value);
-
     if (PyErr_Occurred())
     {
         PyErr_SetString(PyExc_RuntimeError, "Error fill value");

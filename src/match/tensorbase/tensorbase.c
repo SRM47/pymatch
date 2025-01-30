@@ -334,50 +334,6 @@ int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *bro
  *                    Linear Algebra                     *
  *********************************************************/
 
-void print_double_list(const double *list, size_t size)
-{
-    // Check if the list is NULL
-    if (list == NULL)
-    {
-        printf("List is NULL.\n");
-        return;
-    }
-
-    printf("Size of list: %zu\n", size);
-    printf("List of doubles: [");
-    for (size_t i = 0; i < size; i++)
-    {
-        printf("%f", list[i]);
-        if (i < size - 1)
-        {
-            printf(", ");
-        }
-    }
-    printf("]\n");
-}
-
-void print_long_list(const long *list, size_t size)
-{
-    // Check if the list is NULL
-    if (list == NULL)
-    {
-        printf("List is NULL.\n");
-        return;
-    }
-
-    printf("Size of list: %zu\n", size);
-    printf("List of doubles: [");
-    for (size_t i = 0; i < size; i++)
-    {
-        printf("%d", list[i]);
-        if (i < size - 1)
-        {
-            printf(", ");
-        }
-    }
-    printf("]\n");
-}
-
 static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, scalar *result)
 {
     switch (binop)
@@ -505,9 +461,6 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
         {
             return -1;
         }
-        printf("\na: %p to %p\nb: %p to %p\nout: %p to %p\n", a->data, a->data + (a->numel * sizeof(scalar)), b->data, b->data + (b->numel * sizeof(scalar)), out->data, out->data + (out->numel * sizeof(scalar)));
-        printf("before broadcast operation\n");
-        print_double_list(out->data, out->numel);
         // Loop through each element in the broadcasted tensor's data.
         for (long broadcasted_data_index = 0; broadcasted_data_index < out->numel; broadcasted_data_index++)
         {
