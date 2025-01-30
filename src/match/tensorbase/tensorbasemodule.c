@@ -397,7 +397,7 @@ static scalar PyFloatOrLong_asDouble(PyObject *obj)
 
 // static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
 
-static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scalar (*op)(scalar, scalar))
+static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, BinaryScalarOperation binop)
 {
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
@@ -411,7 +411,7 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scal
     {
         TensorBase *t = &(((PyTensorBase *)a)->tb);
         scalar s = PyFloatOrLong_asDouble(b);
-        if (TensorBase_binary_op_tensorbase_scalar(t, s, &(result->tb), op) < 0)
+        if (TensorBase_binary_op_tensorbase_scalar(t, s, &(result->tb), binop) < 0)
         {
             PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
             return NULL;
@@ -422,7 +422,7 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scal
     {
         TensorBase *t = &(((PyTensorBase *)b)->tb);
         scalar s = PyFloatOrLong_asDouble(a);
-        if (TensorBase_binary_op_scalar_tensorbase(t, s, &(result->tb), op) < 0)
+        if (TensorBase_binary_op_scalar_tensorbase(t, s, &(result->tb), binop) < 0)
         {
             PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
             return NULL;
@@ -433,7 +433,7 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scal
     {
         TensorBase *l = &(((PyTensorBase *)a)->tb);
         TensorBase *r = &(((PyTensorBase *)b)->tb);
-        if (TensorBase_binary_op_tensorbase_tensorbase(l, r, &(result->tb), op) < 0)
+        if (TensorBase_binary_op_tensorbase_tensorbase(l, r, &(result->tb), binop) < 0)
         {
             PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
             return NULL;
@@ -448,7 +448,7 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, scal
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scalar))
+static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, UnaryScalarOperation uop)
 {
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
@@ -458,7 +458,7 @@ static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scala
     }
 
     TensorBase *in = &(((PyTensorBase *)a)->tb);
-    if (TensorBase_unary_op(in, &(result->tb), op) < 0)
+    if (TensorBase_unary_op(in, &(result->tb), uop) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error performing unary operation");
         return NULL;
@@ -467,11 +467,11 @@ static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, scalar (*op)(scala
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, scalar (*op)(scalar))
+static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, UnaryScalarOperation uop)
 {
     // Assumes input PyObject is already of type PyTensorBase.
     TensorBase *in = &(((PyTensorBase *)a)->tb);
-    if (TensorBase_unary_op_inplace(in, op) < 0)
+    if (TensorBase_unary_op_inplace(in, uop) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error performing inplace unary operation");
     }
@@ -479,14 +479,14 @@ static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, scalar (*o
     return NULL;
 }
 
-static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_add); }
-static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_sub); }
-static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_mult); }
-static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_floordiv); }
-static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, scalar_truediv); }
-static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *Py_UNUSED(ignored)) { return PyTensorBase_nb_binary_operation(a, b, scalar_power); }
-static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_negative); }
-static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, scalar_absolute); }
+static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_ADD); }
+static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_SUB); }
+static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_MULT); }
+static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_FLOORDIV); }
+static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_TRUEDIV); }
+static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *Py_UNUSED(ignored)) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_POWER); }
+static PyObject *PyTensorBase_nb_negative(PyObject *a) { return PyTensorBase_nb_unary_operation(a, SCALAR_NEGATIVE); }
+static PyObject *PyTensorBase_nb_absolute(PyObject *a) { return PyTensorBase_nb_unary_operation(a, SCALAR_ABSOLUTE); }
 static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
 {
     // Both a and b must be of type TensorBase.
@@ -874,11 +874,10 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj)
 {
     // TODO: calculate a reasonable buffer size
     char *str_buffer = malloc(1 * sizeof(char));
-    *str_buffer = '.';
+    *str_buffer = ' ';
 
     // TensorBase_to_string(&obj->tb, str_buffer, 100 * sizeof(char));
 
-    
     TensorBase_to_string(&obj->tb);
     return Py_BuildValue("s", str_buffer);
 }

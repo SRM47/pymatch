@@ -21,6 +21,23 @@ typedef long IndexArray[MAX_RANK];
 typedef long ShapeArray[MAX_RANK];
 typedef long StrideArray[MAX_RANK];
 
+// Enum for binary operations.
+typedef enum {
+    SCALAR_ADD,
+    SCALAR_SUB,
+    SCALAR_MULT,
+    SCALAR_FLOORDIV,
+    SCALAR_TRUEDIV,
+    SCALAR_POWER
+} BinaryScalarOperation;
+
+// Enum for unary operations.
+typedef enum {
+    SCALAR_NEGATIVE,
+    SCALAR_ABSOLUTE
+} UnaryScalarOperation;
+
+
 // Definition of a TensorBase struct.
 typedef struct _TensorBase
 {
@@ -55,24 +72,15 @@ EXPORT int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, i
  *                    Linear Algebra                     *
  *********************************************************/
 
-EXPORT int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, scalar (*op)(scalar, scalar));
-EXPORT int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar));
-EXPORT int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar));
+EXPORT int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, BinaryScalarOperation binop);
+EXPORT int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop);
+EXPORT int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop);
 
-EXPORT int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar));
-EXPORT int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar));
+EXPORT int TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop);
+EXPORT int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop);
 
 EXPORT int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out);
 EXPORT int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out);
-
-EXPORT scalar scalar_add(scalar a, scalar b);
-EXPORT scalar scalar_sub(scalar a, scalar b);
-EXPORT scalar scalar_mult(scalar a, scalar b);
-EXPORT scalar scalar_floordiv(scalar a, scalar b);
-EXPORT scalar scalar_truediv(scalar a, scalar b);
-EXPORT scalar scalar_power(scalar a, scalar b);
-EXPORT scalar scalar_negative(scalar a);
-EXPORT scalar scalar_absolute(scalar a);
 
 /*********************************************************
  *                      Aggregation                      *

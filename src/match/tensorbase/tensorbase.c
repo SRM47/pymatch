@@ -378,14 +378,95 @@ void print_long_list(const long *list, size_t size)
     printf("]\n");
 }
 
-int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, scalar (*op)(scalar, scalar))
+static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, scalar *result)
+{
+    switch (binop)
+    {
+    case SCALAR_ADD:
+        *result = a + b;
+        break;
+    case SCALAR_SUB:
+        *result = a - b;
+        break;
+    case SCALAR_MULT:
+        *result = a * b;
+        break;
+    case SCALAR_FLOORDIV:
+        *result = floor(a / b);
+        break;
+    case SCALAR_TRUEDIV:
+        *result = a / b;
+        break;
+    case SCALAR_POWER:
+        *result = pow(a, b);
+        break;
+    default:
+        break;
+    }
+}
+
+int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
+{
+    if (TensorBase_create_empty_like(a, out) == -1)
+    {
+        return -1;
+    }
+    if (TensorBase_is_singleton(a))
+    {
+        // Copy the bits of a->data into a_value.
+        scalar a_value;
+        memcpy(&a_value, &(a->data), sizeof(scalar));
+        // Compute the result of the operator.
+        scalar result;
+        apply_binop(binop, a_value, s, &result);
+        // Copy the bits of result into out->data.
+        memcpy(&(out->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < out->numel; i++)
+        {
+            apply_binop(binop, a->data[i], s, out->data + i);
+        }
+    }
+    return 0;
+}
+
+int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
+{
+    if (TensorBase_create_empty_like(a, out) == -1)
+    {
+        return -1;
+    }
+    if (TensorBase_is_singleton(a))
+    {
+        // Copy the bits of a->data into a_value.
+        scalar a_value;
+        memcpy(&a_value, &(a->data), sizeof(scalar));
+        // Compute the result of the operator.
+        scalar result;
+        apply_binop(binop, s, a_value, &result);
+        // Copy the bits of result into out->data.
+        memcpy(&(out->data), &result, sizeof(scalar));
+    }
+    else
+    {
+        for (long i = 0; i < out->numel; i++)
+        {
+            apply_binop(binop, s, a->data[i], out->data + i);
+        }
+    }
+    return 0;
+}
+
+int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, BinaryScalarOperation binop)
 {
     // Check if a is a singleton.
     if (TensorBase_is_singleton(a))
     {
         scalar s;
         memcpy(&s, &(a->data), sizeof(scalar));
-        return TensorBase_binary_op_scalar_tensorbase(b, s, out, op);
+        return TensorBase_binary_op_scalar_tensorbase(b, s, out, binop);
     }
 
     // Check if b is a singleton.
@@ -393,7 +474,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
     {
         scalar s;
         memcpy(&s, &(b->data), sizeof(scalar));
-        return TensorBase_binary_op_tensorbase_scalar(a, s, out, op);
+        return TensorBase_binary_op_tensorbase_scalar(a, s, out, binop);
     }
 
     // Check if the two tensorbase structures don't have the same dimensions
@@ -406,7 +487,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
         }
         for (long i = 0; i < out->numel; i++)
         {
-            out->data[i] = op(a->data[i], b->data[i]);
+            apply_binop(binop, a->data[i], b->data[i], out->data + i);
         }
     }
     else
@@ -457,73 +538,30 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
                     b_data_index += broadcast_coordinate_at_curr_dim * b->strides[b_dim];
                 }
             }
-            printf("a->data[%d] = %f\n", a_data_index, a->data[a_data_index]);
-            printf("b->data[%d] = %f\n", b_data_index, b->data[b_data_index]);
 
-            out->data[broadcasted_data_index] = op(a->data[a_data_index], b->data[b_data_index]);
-
-            printf("out->data[%d]: %f\n", broadcasted_data_index, out->data[broadcasted_data_index]);
+            apply_binop(binop, a->data[a_data_index], b->data[b_data_index], out->data + broadcasted_data_index);
         }
-        printf("after broadcast operation\n");
-        print_double_list(out->data, out->numel);
     }
 
     return 0;
 }
 
-int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
+static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
 {
-    if (TensorBase_create_empty_like(a, out) == -1)
+    switch (uop)
     {
-        return -1;
+    case SCALAR_NEGATIVE:
+        *result = -a;
+        break;
+    case SCALAR_ABSOLUTE:
+        *result = fabs(a);
+        break;
+    default:
+        break;
     }
-    if (TensorBase_is_singleton(a))
-    {
-        // Copy the bits of a->data into a_value.
-        scalar a_value;
-        memcpy(&a_value, &(a->data), sizeof(scalar));
-        // Compute the result of the operator.
-        scalar result = op(a_value, s);
-        // Copy the bits of result into out->data.
-        memcpy(&(out->data), &result, sizeof(scalar));
-    }
-    else
-    {
-        for (long i = 0; i < out->numel; i++)
-        {
-            out->data[i] = op(a->data[i], s);
-        }
-    }
-    return 0;
 }
 
-int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, scalar (*op)(scalar, scalar))
-{
-    if (TensorBase_create_empty_like(a, out) == -1)
-    {
-        return -1;
-    }
-    if (TensorBase_is_singleton(a))
-    {
-        // Copy the bits of a->data into a_value.
-        scalar a_value;
-        memcpy(&a_value, &(a->data), sizeof(scalar));
-        // Compute the result of the operator.
-        scalar result = op(s, a_value);
-        // Copy the bits of result into out->data.
-        memcpy(&(out->data), &result, sizeof(scalar));
-    }
-    else
-    {
-        for (long i = 0; i < out->numel; i++)
-        {
-            out->data[i] = op(s, a->data[i]);
-        }
-    }
-    return 0;
-}
-
-int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
+int TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
 {
     if (in->data == NULL)
     {
@@ -533,20 +571,23 @@ int TensorBase_unary_op_inplace(TensorBase *in, scalar (*op)(scalar))
     {
         scalar in_value;
         memcpy(&in_value, &(in->data), sizeof(scalar));
-        scalar result = op(in_value);
+
+        scalar result;
+        apply_uop(uop, in_value, &result);
+
         memcpy(&(in->data), &result, sizeof(scalar));
     }
     else
     {
         for (long i = 0; i < in->numel; i++)
         {
-            in->data[i] = op(in->data[i]);
+            apply_uop(uop, in->data[i], in->data + i);
         }
     }
     return 0;
 }
 
-int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar))
+int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop)
 {
     if (TensorBase_create_empty_like(in, out) == -1)
     {
@@ -556,14 +597,17 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, scalar (*op)(scalar))
     {
         scalar in_value;
         memcpy(&in_value, &(in->data), sizeof(scalar));
-        scalar result = op(in_value);
+
+        scalar result;
+        apply_uop(uop, in_value, &result);
+
         memcpy(&(out->data), &result, sizeof(scalar));
     }
     else
     {
         for (long i = 0; i < out->numel; i++)
         {
-            out->data[i] = op(in->data[i]);
+            apply_uop(uop, in->data[i], out->data + i);
         }
     }
     return 0;
@@ -608,15 +652,6 @@ int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
         }
     }
 }
-
-scalar scalar_add(scalar a, scalar b) { return a + b; }
-scalar scalar_sub(scalar a, scalar b) { return a - b; }
-scalar scalar_mult(scalar a, scalar b) { return a * b; }
-scalar scalar_floordiv(scalar a, scalar b) { return floor(a / b); }
-scalar scalar_truediv(scalar a, scalar b) { return a / b; }
-scalar scalar_power(scalar a, scalar b) { return pow(a, b); }
-scalar scalar_negative(scalar a) { return -a; }
-scalar scalar_absolute(scalar a) { return fabs(a); }
 
 /*********************************************************
  *                      Aggregation                      *
