@@ -474,9 +474,10 @@ static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, UnaryScala
     if (TensorBase_unary_op_inplace(in, uop) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error performing inplace unary operation");
+        return NULL;
     }
 
-    return NULL;
+    Py_RETURN_NONE;
 }
 
 static PyObject *PyTensorBase_nb_add(PyObject *a, PyObject *b) { return PyTensorBase_nb_binary_operation(a, b, SCALAR_ADD); }
@@ -515,105 +516,67 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_abs_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_ABSOLUTE); }
+static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation(self, SCALAR_ABSOLUTE); }
+
+static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_COS);
 }
 
-static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_abs is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_COS);
 }
 
-static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_cos_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_SIN);
 }
 
-static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_cos is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_SIN);
 }
 
-static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sin_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_TAN);
 }
 
-static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sin is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_TAN);
 }
 
-static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tan_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_TANH);
 }
 
-static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tan is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_TANH);
 }
 
-static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tanh_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_LOG);
 }
 
-static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_tanh is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_LOG);
 }
 
-static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_log_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_EXP);
 }
 
-static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_log is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_EXP);
 }
 
-static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_exp_ is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_SIGMOID);
 }
 
-static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_exp is not implemented");
-    return NULL;
+static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return PyTensorBase_nb_unary_operation(self, SCALAR_SIGMOID);
 }
 
-static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sigmoid_ is not implemented");
-    return NULL;
-}
-
-static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sigmoid is not implemented");
-    return NULL;
-}
-
-static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args))
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_zero_ is not implemented");
+static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args)) {
+    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape_ is not implemented");
     return NULL;
 }
 

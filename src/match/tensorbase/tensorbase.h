@@ -34,7 +34,14 @@ typedef enum {
 // Enum for unary operations.
 typedef enum {
     SCALAR_NEGATIVE,
-    SCALAR_ABSOLUTE
+    SCALAR_ABSOLUTE,
+    SCALAR_COS,
+    SCALAR_SIN,
+    SCALAR_TAN,
+    SCALAR_TANH,
+    SCALAR_LOG,
+    SCALAR_EXP,
+    SCALAR_SIGMOID
 } UnaryScalarOperation;
 
 

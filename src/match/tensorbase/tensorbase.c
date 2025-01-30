@@ -509,6 +509,27 @@ static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
     case SCALAR_ABSOLUTE:
         *result = fabs(a);
         break;
+    case SCALAR_COS:
+        *result = cos(a);
+        break;
+    case SCALAR_SIN:
+        *result = sin(a);
+        break;
+    case SCALAR_TAN:
+        *result = tan(a);
+        break;
+    case SCALAR_TANH:
+        *result = tanh(a);
+        break;
+    case SCALAR_LOG:
+        *result = log(a);
+        break;
+    case SCALAR_EXP:
+        *result = exp(a);
+        break;
+    case SCALAR_SIGMOID:
+        *result = 1.0 / (1.0 + exp(-a));
+        break;
     default:
         break;
     }
