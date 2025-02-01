@@ -718,7 +718,7 @@ static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUS
 
     for (long i = 0; i < self->tb.numel; i++)
     {
-        if (PyList_SetItem(raw_data, i, PyLong_FromLong(self->tb.data[i])))
+        if (PyList_SetItem(raw_data, i, PyFloat_FromDouble(self->tb.data[i])))
         {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set stride item.");
             return NULL;

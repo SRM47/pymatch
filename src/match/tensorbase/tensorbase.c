@@ -64,14 +64,9 @@ static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
         return -1; // Invalid input or output tensor
     }
 
-    if (out->data != NULL)
-    {
-        free(out->data);
-        out->data = NULL;
-    }
-
     if (!TensorBase_is_singleton(in))
     {
+        // TODO: Fix potential memory leak here. Assumes that out->data doesn't point to allocated memory.
         out->data = (scalar *)malloc(in->numel * sizeof(scalar));
         if (out->data == NULL)
         {
@@ -145,12 +140,23 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     // instead of pointing to a one element array.
     if (ndim != 0)
     {
+        // If td->data wasn't null, it wouldv'e been set to an allocated pointer.
+        if (td->data != NULL)
+        {
+            free(td->data);
+        }
         td->data = (scalar *)malloc(td->numel * sizeof(scalar));
         if (td->data == NULL)
         {
             // Memory error.
             return -2;
         }
+    }
+    else
+    {
+        // If singleton, initialize the pointer to be null.
+        // TensorBase_create_tensor_like will not free this then,
+        td->data = NULL;
     }
 
     return 0;
@@ -225,17 +231,17 @@ static void TensorBase_to_string_data(TensorBase *tb, long curr_dim, long data_i
 
 static void TensorBase_to_string_attributes(TensorBase *tb)
 {
-    printf("ndim: %d, numel: %d, ", tb->ndim, tb->numel);
+    printf("ndim: %ld, numel: %ld, ", tb->ndim, tb->numel);
     printf("shape: (");
     for (long i = 0; i < tb->ndim; i++)
     {
-        printf("%d,", tb->shape[i]);
+        printf("%ld,", tb->shape[i]);
     }
     printf("), ");
     printf("strides: (");
     for (long i = 0; i < tb->ndim; i++)
     {
-        printf("%d,", tb->strides[i]);
+        printf("%ld,", tb->strides[i]);
     }
     printf(")\n");
 }
@@ -246,7 +252,7 @@ void TensorBase_to_string(TensorBase *tb)
     {
         scalar value;
         memcpy(&value, &(tb->data), sizeof(scalar));
-        printf("Tensor(%.2f)", value);
+        printf("Tensor(%.2f) ", value);
     }
     else
     {
@@ -262,7 +268,7 @@ void TensorBase_to_string(TensorBase *tb)
  *                     Braodcasting                      *
  *********************************************************/
 
-static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArray broadcast_shape, int *broadcast_ndim)
+static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArray broadcast_shape, long *broadcast_ndim)
 {
     // Initialize broadcast_shape with -1 to indicate dimensions that haven't been determined yet.
     for (size_t i = 0; i < MAX_RANK; i++)

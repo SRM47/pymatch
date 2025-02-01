@@ -23,7 +23,6 @@ class TestTensorBase(BaseUnitTest):
                 .float()
                 .reshape(tuple(match_tensorbase.size))
             )
-        print(torch_tensor)
         torch_tensor.requires_grad = False
         return torch_tensor
 
@@ -44,7 +43,7 @@ class TestTensorBase(BaseUnitTest):
     def almost_equal(self, match_tensorbase, torch_tensor) -> bool:
         self.assertTrue(
             torch.allclose(
-                self.to_tensor(match_tensorbase), torch_tensor, rtol=1e-02, atol=1e-05
+                self.to_tensor(match_tensorbase).float(), torch_tensor.float(), rtol=1e-02, atol=1e-05
             )
         )
         self.assertEqual(match_tensorbase.size, torch_tensor.size())
@@ -543,12 +542,6 @@ class TestTensorBase(BaseUnitTest):
 
     def test_bin_operators_broadcast_success(self):
         operators_to_test = {
-            # "lt": operator.lt,
-            # "le": operator.le,
-            # "eq": operator.eq,
-            # "ne": operator.ne,
-            # "ge": operator.ge,
-            # "gt": operator.gt,
             "add": operator.add,
             "sub": operator.sub,
             "mul": operator.mul,
@@ -557,12 +550,13 @@ class TestTensorBase(BaseUnitTest):
         }
         for msg, op in operators_to_test.items():
             with self.subTest(msg=msg):
+                print(msg)
                 with self.subTest(msg="nd_nd_same_shape"):
                     match_tensorbase1, torch_tensor1 = self.generate_tensor_pair(
-                        (2, 3, 4), fill_value=4
+                        (2, 3, 4), fill_value=4.2
                     )
                     match_tensorbase2, torch_tensor2 = self.generate_tensor_pair(
-                        (2, 3, 4), fill_value=4
+                        (2, 3, 4), fill_value=4.5
                     )
                     self.almost_equal(
                         op(match_tensorbase1, match_tensorbase2),
@@ -571,31 +565,31 @@ class TestTensorBase(BaseUnitTest):
 
                 with self.subTest(msg="nd_nd_broadcastable_shape"):
                     match_tensorbase1, torch_tensor1 = self.generate_tensor_pair(
-                        (2, 3, 1), fill_value=4
+                        (2, 3, 1), fill_value=0.4
                     )
                     match_tensorbase2, torch_tensor2 = self.generate_tensor_pair(
-                        (1, 3, 4), fill_value=1
+                        (1, 3, 4), fill_value=1.244
                     )
                     self.almost_equal(
                         op(match_tensorbase1, match_tensorbase2),
                         op(torch_tensor1, torch_tensor2),
                     )
 
-                # with self.subTest(msg="nd_singleton"):
-                #     match_tensorbase_singleton1, torch_tensor_singleton1 = (
-                #         self.generate_tensor_pair((), fill_value=3)
-                #     )
-                #     match_tensorbase2, torch_tensor2 = self.generate_tensor_pair(
-                #         (2, 3, 4), fill_value=2
-                #     )
-                #     self.almost_equal(
-                #         op(match_tensorbase_singleton1, match_tensorbase2),
-                #         op(torch_tensor_singleton1, torch_tensor2),
-                #     )
-                #     self.almost_equal(
-                #         op(match_tensorbase2, match_tensorbase_singleton1),
-                #         op(torch_tensor2, torch_tensor_singleton1),
-                #     )
+                with self.subTest(msg="nd_singleton"):
+                    match_tensorbase_singleton1, torch_tensor_singleton1 = (
+                        self.generate_tensor_pair((), fill_value=3.1)
+                    )
+                    match_tensorbase2, torch_tensor2 = self.generate_tensor_pair(
+                        (2, 3, 4), fill_value=2.273
+                    )
+                    self.almost_equal(
+                        op(match_tensorbase_singleton1, match_tensorbase2),
+                        op(torch_tensor_singleton1, torch_tensor2),
+                    )
+                    self.almost_equal(
+                        op(match_tensorbase2, match_tensorbase_singleton1),
+                        op(torch_tensor2, torch_tensor_singleton1),
+                    )
 
                 with self.subTest(msg="nd_scalar"):
                     match_tensorbase, torch_tensor = self.generate_tensor_pair(
@@ -608,21 +602,21 @@ class TestTensorBase(BaseUnitTest):
                         op(-3.47, match_tensorbase), op(-3.47, torch_tensor)
                     )
 
-                # with self.subTest(msg="singleton_singleton"):
-                #     match_tensorbase_singleton1, torch_tensor_singleton1 = (
-                #         self.generate_tensor_pair((), fill_value=2)
-                #     )
-                #     match_tensorbase_singleton2, torch_tensor_singleton2 = (
-                #         self.generate_tensor_pair((), fill_value=2)
-                #     )
-                #     self.almost_equal(
-                #         op(match_tensorbase_singleton1, match_tensorbase_singleton2),
-                #         op(torch_tensor_singleton1, torch_tensor_singleton2),
-                #     )
+                with self.subTest(msg="singleton_singleton"):
+                    match_tensorbase_singleton1, torch_tensor_singleton1 = (
+                        self.generate_tensor_pair((), fill_value=-102.2)
+                    )
+                    match_tensorbase_singleton2, torch_tensor_singleton2 = (
+                        self.generate_tensor_pair((), fill_value=223478.234)
+                    )
+                    self.almost_equal(
+                        op(match_tensorbase_singleton1, match_tensorbase_singleton2),
+                        op(torch_tensor_singleton1, torch_tensor_singleton2),
+                    )
 
                 with self.subTest(msg="singleton_scalar"):
                     match_tensorbase_singleton, torch_tensor_singleton = (
-                        self.generate_tensor_pair((), fill_value=2)
+                        self.generate_tensor_pair((), fill_value=2.34987593)
                     )
                     self.almost_equal(
                         op(match_tensorbase_singleton, 1.47),
