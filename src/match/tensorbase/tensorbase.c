@@ -669,6 +669,9 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
         return -3;
     }
 
+    // Calculate if the input tensor is singleton before changing internal metadata.
+    int is_singleton = TensorBase_is_singleton(in);
+
     // Calculate Tensorbase strides.
     in->ndim = ndim;
     long stride = numel_for_stride;
@@ -689,6 +692,42 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
         in->shape[i] = -1;
     }
 
+    // Must handle special case for singleton objects.
+    // Singleton -> nd. must allocate memory for the one element in the nd array
+    if (is_singleton)
+    {
+        if (ndim > 0)
+        {
+            // Allocate the new memory.
+            scalar *new_data_region = (scalar *)malloc(1 * sizeof(scalar));
+            if (new_data_region == NULL)
+            {
+                return -1;
+            }
+            // Copy the bits of the original scalar into the first position of the new_data_region.
+            memcpy(new_data_region, &(in->data), sizeof(scalar));
+            // Assign the data point the new region in memory.
+            in->data = new_data_region;
+        }
+    }
+    // nd -> singleton. must free memory and place the singleton value in the pointer.
+    else
+    {
+        // By this point, if ndim is 0, the bew shape will be a singleton and all the checks wouldv'e been verified.
+        // this is just copying the data.
+        if (ndim == 0)
+        {
+            // also note that the fact that the singleton data isnt just a one element array meas that it's hard now to share data
+            // we lose that functionality for better locality and fewer allocations. 
+            // Get the single value from the nd tensor
+            scalar value = *in->data;
+            // Free the memory
+            free(in->data);
+            // Copy the memory bits from the scalar into the in->data pointer
+            memcpy(&in->data, &value, sizeof(scalar));
+        }
+    }
+
     return 0;
 }
 int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
@@ -707,9 +746,10 @@ int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long n
 
     // will not share data memory (data pointers point to the same data) or else we'd have to implement reference counting of the data element
     // well call this a limitation of the system
-    if (TensorBase_create_empty_like(in, out) < 0) {
+    if (TensorBase_create_empty_like(in, out) < 0)
+    {
         return -1;
-    } 
+    }
 
     return TensorBase_reshape_inplace(out, shape, ndim);
 }

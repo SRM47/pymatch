@@ -15,8 +15,8 @@ if __name__ == "__main__":
     t1.fill_(2)
     t3, t4 = make_tensorbases((2,1,4), 2)
     t3.fill_(2)
-    print(t3)
-    print(t3.reshape_((8,1)))
-    print(t3)
+    print(t1)
+    print(t1.reshape((1,)))
+    print(t1)
 
     
