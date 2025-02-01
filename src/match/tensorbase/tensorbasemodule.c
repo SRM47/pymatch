@@ -697,21 +697,15 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
     TensorBase *in = &((PyTensorBase *)self)->tb;
     TensorBase *out = &((PyTensorBase *)result)->tb;
 
-    printf("out shape array pointer: %p\n", out->shape);
-    printf("in shape array pointer: %p\n", in->shape);
-    memcpy(out, in, sizeof(TensorBase));
-    printf("out shape array pointer: %p\n", out->shape);
-    printf("in shape array pointer: %p\n", in->shape);
-
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
     if (ndim == -1) {
         PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
-    int status = TensorBase_reshape_inplace(out, shape, ndim);
+    int status = TensorBase_reshape(in, out, shape, ndim);
     if (status == -1) {
-        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape_");
+        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape");
         return NULL;
     }
     if (status == -2) {
@@ -907,7 +901,7 @@ static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 
 static void PyTensorBase_dealloc(PyTensorBase *self)
 {
-    TensorBase_dealloc(&self->tb, );
+    TensorBase_dealloc(&self->tb);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 

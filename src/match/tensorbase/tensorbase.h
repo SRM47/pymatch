@@ -48,6 +48,7 @@ typedef enum {
 // Definition of a TensorBase struct.
 typedef struct _TensorBase
 {
+    long data_ref_count; // Number of references to the data pointer (for deallocation).
     long numel;          // Number of elements (length of data array)
     long ndim;           // Number of dimensions
     ShapeArray shape;    // Shape of tensor (-1 indicates end of array)
@@ -60,7 +61,7 @@ typedef struct _TensorBase
  *********************************************************/
 
 EXPORT int TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim);
-EXPORT void TensorBase_dealloc(TensorBase *tb, long ref_count);
+EXPORT void TensorBase_dealloc(TensorBase *tb);
 
 /*********************************************************
  *                     String Methods                    *
@@ -103,6 +104,7 @@ EXPORT int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation);
 EXPORT int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out);
 
 EXPORT int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim);
+EXPORT int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim);
 
 EXPORT int TensorBase_fill_(TensorBase *in, scalar fill_value);
 EXPORT int TensorBase_randn_(TensorBase *in);

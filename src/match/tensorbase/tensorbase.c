@@ -150,7 +150,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     return 0;
 }
 
-void TensorBase_dealloc(TensorBase *td, long ref_count)
+void TensorBase_dealloc(TensorBase *td)
 {
     if (td == NULL)
     {
@@ -160,7 +160,8 @@ void TensorBase_dealloc(TensorBase *td, long ref_count)
     // Only free the pointer if not singleton.
     // Sington tensor structs do not point to address on heap,
     // rather directly store data in the pointer variable.
-    if (td->data != NULL && !TensorBase_is_singleton(td) && ref_count > 1)
+    // also assumes only one pointer to data. will not implementreference counting if we start to share memory between tensors
+    if (td->data != NULL && !TensorBase_is_singleton(td))
     {
         free(td->data);
     }
@@ -689,6 +690,28 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
     }
 
     return 0;
+}
+int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
+{
+    // Does not do validation of shape array
+    // assumes ndim is the rank of shape
+    if (in == NULL || out == NULL)
+    {
+        return -1;
+    }
+
+    if (ndim > MAX_RANK)
+    {
+        return -4;
+    }
+
+    // will not share data memory (data pointers point to the same data) or else we'd have to implement reference counting of the data element
+    // well call this a limitation of the system
+    if (TensorBase_create_empty_like(in, out) < 0) {
+        return -1;
+    } 
+
+    return TensorBase_reshape_inplace(out, shape, ndim);
 }
 
 int TensorBase_fill_(TensorBase *in, scalar fill_value)
