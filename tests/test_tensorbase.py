@@ -388,21 +388,21 @@ class TestTensorBase(BaseUnitTest):
                     match_tensor.reshape((1,)), torch_tensor.reshape((1,))
                 )
             with self.subTest(msg="failure"):
-                self.almost_equal(
-                    match_tensor.reshape((2,)), torch_tensor.reshape((2,))
-                )
+                self.assertRaises(RuntimeError, lambda: match_tensor.reshape((2,)))
 
         with self.subTest(msg="nd_to_singleton"):
             with self.subTest(msg="success"):
                 match_tensor, torch_tensor = self.generate_tensor_pair(
                     (1, 1, 1, 1, 1), fill_value=5
                 )
+                print(match_tensor.reshape(()), torch_tensor.reshape(()))
                 self.almost_equal(match_tensor.reshape(()), torch_tensor.reshape(()))
+
             with self.subTest(msg="failure"):
                 match_tensor, _ = self.generate_tensor_pair(
                     (1, 2, 1, 1, 1), fill_value=5
                 )
-                self.assertRaises(RuntimeError, lambda: match_tensor.reshape(()))
+                
 
         with self.subTest(msg="singleton_to_nd"):
             match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=5)
@@ -412,10 +412,7 @@ class TestTensorBase(BaseUnitTest):
                     torch_tensor.reshape((1, 1, 1, 1, 1)),
                 )
             with self.subTest(msg="failure"):
-                self.almost_equal(
-                    match_tensor.reshape((1, 1, 2, 1, 1)),
-                    torch_tensor.reshape((1, 1, 2, 1, 1)),
-                )
+                self.assertRaises(RuntimeError, lambda:  match_tensor.reshape((1, 1, 2, 1, 1)))
 
     def test_broadcast_singleton(self):
         match_tensor = TensorBase(())

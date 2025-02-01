@@ -724,7 +724,7 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
             // Free the memory
             free(in->data);
             // Copy the memory bits from the scalar into the in->data pointer
-            memcpy(&in->data, &value, sizeof(scalar));
+            memcpy(&(in->data), &value, sizeof(scalar));
         }
     }
 
@@ -751,6 +751,11 @@ int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long n
         return -1;
     }
 
+    // must also copy the data over if not a single object.
+    if (!TensorBase_is_singleton(in)) {
+        memcpy(out->data, in->data, out->numel * sizeof(scalar));
+    }
+    
     return TensorBase_reshape_inplace(out, shape, ndim);
 }
 

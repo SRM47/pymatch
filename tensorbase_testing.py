@@ -11,12 +11,12 @@ def make_tensorbases(shape, num_tensorbases):
     return tuple(res)
 
 if __name__ == "__main__":
-    t1, t2 = make_tensorbases((), 2)
+    t1, t2 = make_tensorbases((1,), 2)
     t1.fill_(2)
     t3, t4 = make_tensorbases((2,1,4), 2)
     t3.fill_(2)
     print(t1)
-    print(t1.reshape((1,)))
+    print(t1.reshape(()))
     print(t1)
 
     
