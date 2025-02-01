@@ -60,7 +60,7 @@ typedef struct _TensorBase
  *********************************************************/
 
 EXPORT int TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim);
-EXPORT void TensorBase_dealloc(TensorBase *tb);
+EXPORT void TensorBase_dealloc(TensorBase *tb, long ref_count);
 
 /*********************************************************
  *                     String Methods                    *
@@ -102,8 +102,7 @@ EXPORT int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, Ten
 EXPORT int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation);
 EXPORT int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out);
 
-EXPORT int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape);
-EXPORT int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out);
+EXPORT int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim);
 
 EXPORT int TensorBase_fill_(TensorBase *in, scalar fill_value);
 EXPORT int TensorBase_randn_(TensorBase *in);

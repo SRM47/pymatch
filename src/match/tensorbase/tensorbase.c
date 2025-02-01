@@ -59,36 +59,29 @@ static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shap
 
 static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
 {
+    // Assumes out->data doesn't point to any alocated memory.
     if (in == NULL || out == NULL)
     {
         return -1; // Invalid input or output tensor
     }
 
+    memcpy(out, in, sizeof(TensorBase));
+
     if (!TensorBase_is_singleton(in))
     {
-        // TODO: Fix potential memory leak here. Assumes that out->data doesn't point to allocated memory.
         out->data = (scalar *)malloc(in->numel * sizeof(scalar));
         if (out->data == NULL)
         {
             return -1;
         }
     }
-    else
-    {
-        out->data = in->data;
-    }
 
-    out->numel = in->numel;
-    out->ndim = in->ndim;
-    memcpy(out->shape, in->shape, MAX_RANK * sizeof(long));
-    memcpy(out->strides, in->strides, MAX_RANK * sizeof(long));
     return 0;
 }
 
 /*********************************************************
  *                    Alloc & Dealloc                    *
  *********************************************************/
-
 int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 {
     if (ndim > MAX_RANK || ndim < 0)
@@ -140,11 +133,6 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     // instead of pointing to a one element array.
     if (ndim != 0)
     {
-        // If td->data wasn't null, it wouldv'e been set to an allocated pointer.
-        if (td->data != NULL)
-        {
-            free(td->data);
-        }
         td->data = (scalar *)malloc(td->numel * sizeof(scalar));
         if (td->data == NULL)
         {
@@ -162,7 +150,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
     return 0;
 }
 
-void TensorBase_dealloc(TensorBase *td)
+void TensorBase_dealloc(TensorBase *td, long ref_count)
 {
     if (td == NULL)
     {
@@ -172,17 +160,12 @@ void TensorBase_dealloc(TensorBase *td)
     // Only free the pointer if not singleton.
     // Sington tensor structs do not point to address on heap,
     // rather directly store data in the pointer variable.
-    if (td->data != NULL && !TensorBase_is_singleton(td))
+    if (td->data != NULL && !TensorBase_is_singleton(td) && ref_count > 1)
     {
         free(td->data);
     }
-
-    td->data = NULL;
-    td->numel = 0;
-    td->ndim = 0;
     // Use memset to zero out shape and strides arrays safely.
-    memset(td->shape, 0, MAX_RANK * sizeof(long));
-    memset(td->strides, 0, MAX_RANK * sizeof(long));
+    memset(td, 0, sizeof(TensorBase));
 }
 
 /*********************************************************
@@ -647,8 +630,66 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
 int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -2; }
 int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -2; }
 
-int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape) { return -2; }
-int TensorBase_reshape(TensorBase *in, ShapeArray shape, TensorBase *out) { return -2; }
+int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
+{
+    // Does not do validation of shape array
+    // assumes ndim is the rank of shape
+    if (in == NULL)
+    {
+        return -1;
+    }
+
+    if (ndim > MAX_RANK)
+    {
+        return -4;
+    }
+
+    long numel_for_stride = 1;
+    long numel = 1;
+    printf("%ld ", ndim);
+    for (int i = 0; i < ndim; i++)
+    {
+        long dim = shape[i];
+        printf("%ld ", dim);
+        if (dim < 0)
+        {
+            // All dimensions must be >= 0 (-1 indicates no-dimension).
+            return -2;
+        }
+        numel *= dim;
+        if (dim > 0)
+        {
+            numel_for_stride *= dim;
+        }
+    }
+
+    if (numel != in->numel)
+    {
+        return -3;
+    }
+
+    // Calculate Tensorbase strides.
+    in->ndim = ndim;
+    long stride = numel_for_stride;
+    long i = 0;
+    for (; i < ndim; i++)
+    {
+        long dim = shape[i];
+        if (dim > 0)
+        {
+            stride /= dim;
+        }
+        in->strides[i] = stride;
+        in->shape[i] = dim;
+    }
+    for (; i < MAX_RANK; i++)
+    {
+        in->strides[i] = 0;
+        in->shape[i] = -1;
+    }
+
+    return 0;
+}
 
 int TensorBase_fill_(TensorBase *in, scalar fill_value)
 {

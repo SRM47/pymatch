@@ -394,6 +394,59 @@ static scalar PyFloatOrLong_asDouble(PyObject *obj)
     }
     return PyFloat_AsDouble(obj);
 }
+static long arg_to_shape(PyObject *arg, ShapeArray tb_shape)
+{
+    PyObject *shape_array = arg;
+
+    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
+    Py_ssize_t tuple_len = PyTuple_Size(shape_array);
+
+    if (tuple_len > MAX_RANK)
+    {
+        return -1;
+    }
+
+    for (long i = 0; i < MAX_RANK; i++)
+    {
+        tb_shape[i] = -1.0;
+    }
+
+    for (long i = 0; i < tuple_len; i++)
+    {
+        PyObject *item = PyTuple_GetItem(shape_array, i);
+        if (item == NULL)
+        {
+            PyErr_SetString(PyExc_ValueError, "Failed to retrieve an item from the tuple.");
+            return -1;
+        }
+
+        if (!PyLong_Check(item))
+        {
+            PyErr_SetString(PyExc_ValueError, "Tensor values must be integers!!");
+            return -1;
+        }
+
+        tb_shape[i] = PyLong_AsLong(item);
+        if (tb_shape[i] == -1 && PyErr_Occurred())
+        {
+            return -1;
+        }
+    }
+    // return the number of dimensions
+    return (long)tuple_len;
+}
+
+static long args_to_shape(PyObject *args, ShapeArray tb_shape)
+{
+    if (!(PyTuple_Size(args) == 1 && PyTuple_Check(PyTuple_GetItem(args, 0))))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected tuple.");
+        return -1;
+    }
+
+    return arg_to_shape(PyTuple_GetItem(args, 0), tb_shape);
+}
+
 
 // static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
 
@@ -519,64 +572,79 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
 static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_ABSOLUTE); }
 static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation(self, SCALAR_ABSOLUTE); }
 
-static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_cos_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_COS);
 }
 
-static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_cos(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_COS);
 }
 
-static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sin_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_SIN);
 }
 
-static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sin(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_SIN);
 }
 
-static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tan_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_TAN);
 }
 
-static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tan(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_TAN);
 }
 
-static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tanh_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_TANH);
 }
 
-static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_tanh(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_TANH);
 }
 
-static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_log_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_LOG);
 }
 
-static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_log(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_LOG);
 }
 
-static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_exp_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_EXP);
 }
 
-static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_EXP);
 }
 
-static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_SIGMOID);
 }
 
-static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args)) {
+static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args))
+{
     return PyTensorBase_nb_unary_operation(self, SCALAR_SIGMOID);
 }
 
-static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args)) {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape_ is not implemented");
+static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args))
+{
+    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_zero_ is not implemented");
     return NULL;
 }
 
@@ -594,14 +662,72 @@ static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args))
 
 static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape_ is not implemented");
-    return NULL;
+    TensorBase *t = &((PyTensorBase *)self)->tb;
+    ShapeArray shape;
+    long ndim = arg_to_shape(args, shape);
+    if (ndim == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "error here");
+        return NULL;
+    }
+    int status = TensorBase_reshape_inplace(t, shape, ndim);
+    if (status == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape_");
+        return NULL;
+    }
+    if (status == -2) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
+        return NULL;
+    }
+    if (status == -3) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
+        return NULL;
+    }
+    if (status == -4) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
 }
 
 static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_reshape is not implemented");
-    return NULL;
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+
+    TensorBase *in = &((PyTensorBase *)self)->tb;
+    TensorBase *out = &((PyTensorBase *)result)->tb;
+
+    printf("out shape array pointer: %p\n", out->shape);
+    printf("in shape array pointer: %p\n", in->shape);
+    memcpy(out, in, sizeof(TensorBase));
+    printf("out shape array pointer: %p\n", out->shape);
+    printf("in shape array pointer: %p\n", in->shape);
+
+    ShapeArray shape;
+    long ndim = arg_to_shape(args, shape);
+    if (ndim == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "error here");
+        return NULL;
+    }
+    int status = TensorBase_reshape_inplace(out, shape, ndim);
+    if (status == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape_");
+        return NULL;
+    }
+    if (status == -2) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
+        return NULL;
+    }
+    if (status == -3) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
+        return NULL;
+    }
+    if (status == -4) {
+        PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
+        return NULL;
+    }
+
+    return (PyObject*) result;
 }
 
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
@@ -740,52 +866,6 @@ static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
     return NULL;
 }
 
-static long args_to_shape(PyObject *args, ShapeArray tb_shape)
-{
-    if (!(PyTuple_Size(args) == 1 && PyTuple_Check(PyTuple_GetItem(args, 0))))
-    {
-        PyErr_SetString(PyExc_ValueError, "Expected tuple.");
-        return -1;
-    }
-    PyObject *shape_array = PyTuple_GetItem(args, 0);
-
-    // Parse args as tuple of dimensions (or tuple of tuple of dimensions)
-    Py_ssize_t tuple_len = PyTuple_Size(shape_array);
-
-    if (tuple_len > MAX_RANK)
-    {
-        return -1;
-    }
-
-    for (size_t i = 0; i < MAX_RANK; i++)
-    {
-        tb_shape[i] = -1.0;
-    }
-
-    for (long i = 0; i < tuple_len; i++)
-    {
-        PyObject *item = PyTuple_GetItem(shape_array, i);
-        if (item == NULL)
-        {
-            PyErr_SetString(PyExc_ValueError, "Failed to retrieve an item from the tuple.");
-            return -1;
-        }
-
-        if (!PyLong_Check(item))
-        {
-            PyErr_SetString(PyExc_ValueError, "Tensor values must be integers!!");
-            return -1;
-        }
-
-        tb_shape[i] = PyLong_AsLong(item);
-        if (tb_shape[i] == -1 && PyErr_Occurred())
-        {
-            return -1;
-        }
-    }
-    // return the number of dimensions
-    return (long)tuple_len;
-}
 
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {
@@ -827,7 +907,7 @@ static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 
 static void PyTensorBase_dealloc(PyTensorBase *self)
 {
-    TensorBase_dealloc(&self->tb);
+    TensorBase_dealloc(&self->tb, );
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
