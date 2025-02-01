@@ -22,7 +22,8 @@ typedef long ShapeArray[MAX_RANK];
 typedef long StrideArray[MAX_RANK];
 
 // Enum for binary operations.
-typedef enum {
+typedef enum
+{
     SCALAR_ADD,
     SCALAR_SUB,
     SCALAR_MULT,
@@ -32,7 +33,8 @@ typedef enum {
 } BinaryScalarOperation;
 
 // Enum for unary operations.
-typedef enum {
+typedef enum
+{
     SCALAR_NEGATIVE,
     SCALAR_ABSOLUTE,
     SCALAR_COS,
@@ -43,7 +45,6 @@ typedef enum {
     SCALAR_EXP,
     SCALAR_SIGMOID
 } UnaryScalarOperation;
-
 
 // Definition of a TensorBase struct.
 typedef struct _TensorBase
@@ -113,4 +114,3 @@ EXPORT int TensorBase_item(TensorBase *t, scalar *item);
 
 EXPORT void print_double_list(const double *list, size_t size);
 EXPORT void print_long_list(const long *list, size_t size);
-

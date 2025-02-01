@@ -19,7 +19,9 @@ class TestTensorBase(BaseUnitTest):
             torch_tensor = torch.tensor(match_tensorbase.item()).float()
         else:
             torch_tensor = (
-                torch.Tensor(match_tensorbase._raw_data) # Gets the raw 1D array storing the data of the TensorBase object.
+                torch.Tensor(
+                    match_tensorbase._raw_data
+                )  # Gets the raw 1D array storing the data of the TensorBase object.
                 .float()
                 .reshape(tuple(match_tensorbase.size))
             )
@@ -43,7 +45,10 @@ class TestTensorBase(BaseUnitTest):
     def almost_equal(self, match_tensorbase, torch_tensor) -> bool:
         self.assertTrue(
             torch.allclose(
-                self.to_tensor(match_tensorbase).float(), torch_tensor.float(), rtol=1e-02, atol=1e-05
+                self.to_tensor(match_tensorbase).float(),
+                torch_tensor.float(),
+                rtol=1e-02,
+                atol=1e-05,
             )
         )
         self.assertEqual(match_tensorbase.size, torch_tensor.size())
@@ -402,7 +407,6 @@ class TestTensorBase(BaseUnitTest):
                 match_tensor, _ = self.generate_tensor_pair(
                     (1, 2, 1, 1, 1), fill_value=5
                 )
-                
 
         with self.subTest(msg="singleton_to_nd"):
             match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=5)
@@ -412,7 +416,9 @@ class TestTensorBase(BaseUnitTest):
                     torch_tensor.reshape((1, 1, 1, 1, 1)),
                 )
             with self.subTest(msg="failure"):
-                self.assertRaises(RuntimeError, lambda:  match_tensor.reshape((1, 1, 2, 1, 1)))
+                self.assertRaises(
+                    RuntimeError, lambda: match_tensor.reshape((1, 1, 2, 1, 1))
+                )
 
     def test_broadcast_singleton(self):
         match_tensor = TensorBase(())

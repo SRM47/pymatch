@@ -447,7 +447,6 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
     return arg_to_shape(PyTuple_GetItem(args, 0), tb_shape);
 }
 
-
 // static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
 
 static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, BinaryScalarOperation binop)
@@ -665,24 +664,29 @@ static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
     TensorBase *t = &((PyTensorBase *)self)->tb;
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
-    if (ndim == -1) {
+    if (ndim == -1)
+    {
         PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
     int status = TensorBase_reshape_inplace(t, shape, ndim);
-    if (status == -1) {
+    if (status == -1)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape_");
         return NULL;
     }
-    if (status == -2) {
+    if (status == -2)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
         return NULL;
     }
-    if (status == -3) {
+    if (status == -3)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
         return NULL;
     }
-    if (status == -4) {
+    if (status == -4)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
         return NULL;
     }
@@ -699,29 +703,34 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
 
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
-    if (ndim == -1) {
+    if (ndim == -1)
+    {
         PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
     int status = TensorBase_reshape(in, out, shape, ndim);
-    if (status == -1) {
+    if (status == -1)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape");
         return NULL;
     }
-    if (status == -2) {
+    if (status == -2)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
         return NULL;
     }
-    if (status == -3) {
+    if (status == -3)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
         return NULL;
     }
-    if (status == -4) {
+    if (status == -4)
+    {
         PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
         return NULL;
     }
 
-    return (PyObject*) result;
+    return (PyObject *)result;
 }
 
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
@@ -859,7 +868,6 @@ static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
     return NULL;
 }
-
 
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {

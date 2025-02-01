@@ -718,7 +718,7 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
         if (ndim == 0)
         {
             // also note that the fact that the singleton data isnt just a one element array meas that it's hard now to share data
-            // we lose that functionality for better locality and fewer allocations. 
+            // we lose that functionality for better locality and fewer allocations.
             // Get the single value from the nd tensor
             scalar value = *in->data;
             // Free the memory
@@ -752,10 +752,11 @@ int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long n
     }
 
     // must also copy the data over if not a single object.
-    if (!TensorBase_is_singleton(in)) {
+    if (!TensorBase_is_singleton(in))
+    {
         memcpy(out->data, in->data, out->numel * sizeof(scalar));
     }
-    
+
     return TensorBase_reshape_inplace(out, shape, ndim);
 }
 
