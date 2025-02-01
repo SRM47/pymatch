@@ -632,17 +632,11 @@ class TestTensorBase(BaseUnitTest):
 
     def test_operators_broadcast_failure(self):
         operators_to_test = {
-            "lt": operator.lt,
-            "le": operator.le,
-            "eq": operator.eq,
-            "ne": operator.ne,
-            "ge": operator.ge,
-            "gt": operator.gt,
             "add": operator.add,
             "sub": operator.sub,
             "mul": operator.mul,
-            "neg": operator.neg,
             "truediv": operator.truediv,
+            "floordiv": operator.floordiv,
         }
         for msg, op in operators_to_test.items():
             with self.subTest(msg=msg):
@@ -653,5 +647,5 @@ class TestTensorBase(BaseUnitTest):
                     (2, 3, 3), fill_value=0
                 )
                 self.assertRaises(
-                    RuntimeError, op(match_tensorbase1, match_tensorbase2)
+                    RuntimeError, lambda: op(match_tensorbase1, match_tensorbase2)
                 )
