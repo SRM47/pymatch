@@ -521,7 +521,7 @@ static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
         *result = 1.0 / (1.0 + exp(-a));
         break;
     case SCALAR_RELU:
-        *result = max(0, a);
+        *result = fmax(0, a);
         break;
     default:
         break;

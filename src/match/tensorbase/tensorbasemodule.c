@@ -138,6 +138,9 @@ static PyObject *PyTensorBase_exp(PyObject *self, PyObject *Py_UNUSED(args));
 static PyObject *PyTensorBase_sigmoid_(PyObject *self, PyObject *Py_UNUSED(args));
 static PyObject *PyTensorBase_sigmoid(PyObject *self, PyObject *Py_UNUSED(args));
 
+static PyObject *PyTensorBase_relu_(PyObject *self, PyObject *Py_UNUSED(args));
+static PyObject *PyTensorBase_relu(PyObject *self, PyObject *Py_UNUSED(args));
+
 static PyObject *PyTensorBase_zero_(PyObject *self, PyObject *Py_UNUSED(args));
 
 static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args));

@@ -18,7 +18,7 @@ if __name__ == "__main__":
     m2.fill_(3)
 
     m3, m4 = make_tensorbases((1,4), 2)
-    m3.fill_(4)
+    m3.fill_(0.5)
     m4.fill_(2)
     m4.reshape_((4, 1))
 
@@ -26,7 +26,5 @@ if __name__ == "__main__":
     m5.fill_(6)
     m6.fill_(7)
 
-    print(m3)
-    print(m2)
-    print(m3@m2)
+    print(m3.relu())
 
