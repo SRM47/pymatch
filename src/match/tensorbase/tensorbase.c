@@ -650,9 +650,22 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
         // if a.shape = [2,3,4,5,6]
         // batch dims are [2,3,4] (batch_dim_a = 3)
         // so matrix dims are [5,6], or shape[batch_dim_a] and shape[batch_dim_a+1].
-        if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
+
+        if (matrix_dims_a == 1)
         {
-            return -2;
+            if (a->shape[batch_dims_a] != b->shape[batch_dims_b])
+            {
+                printf("%ld, %ld", batch_dims_a, batch_dims_b);
+                return -2;
+            }
+        }
+        else
+        {
+            if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
+            {
+                printf("%ld, %ld", batch_dims_a, batch_dims_b);
+                return -2;
+            }
         }
 
         long non_matrix_dims;
@@ -720,9 +733,6 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
     {
         out->data = (scalar *)malloc(numel * sizeof(scalar));
     }
-
-
-
     return 0;
 }
 
@@ -784,6 +794,77 @@ int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
     }
     else
     {
+        // Get batch and matrix dimensions.
+        long matrix_dims_a = a->ndim > 1 ? 2 : 1;
+        long matrix_dims_b = b->ndim > 1 ? 2 : 1;
+        long batch_dims_a = a->ndim - matrix_dims_a; // Number of non matrix dimensions in a
+        long batch_dims_b = b->ndim - matrix_dims_b; // Number of non-matrix dimensions in b
+
+        long batch_dims = max_long(batch_dims_a, batch_dims_b);
+        long numel_in_batch_dims = 1;
+        for (int dim = 0; dim < batch_dims; dim++)
+        {
+            numel_in_batch_dims *= out->shape[dim];
+        }
+
+        // Calculate the shape of the matrices to multiple from the matrix dimensions.
+        long n, l, m;
+
+        if (matrix_dims_a == 1)
+        {
+            n = 1;
+            l = a->shape[0]; // Same as b->shape[batch_dims_b]
+            m = b->shape[batch_dims_b + 1];
+        }
+        else if (matrix_dims_b == 1)
+        {
+            n = a->shape[batch_dims_a];
+            l = b->shape[0]; // Same as a->shape[batch_dims_a+1]
+            m = 1;
+        }
+        else
+        {
+            n = a->shape[batch_dims_a];
+            l = a->shape[batch_dims_a + 1]; // Same as b->shape[batch_dims_b]
+            m = b->shape[batch_dims_b + 1];
+        }
+
+        // Loop through each element in the non matrix dimensions broadcasted tensor's data.
+        for (long broadcasted_data_index = 0; broadcasted_data_index < numel_in_batch_dims; broadcasted_data_index++)
+        {
+            // For each element in the data index, calculate the corresponding
+            // element in each of the input tensors.
+            long a_data_index = 0;
+            long b_data_index = 0;
+
+            long a_dim = batch_dims_a - 1;
+            long b_dim = batch_dims_b - 1;
+            long broadcast_dim = batch_dims - 1;
+
+            long temp = broadcasted_data_index;
+
+            for (; broadcast_dim >= 0; broadcast_dim--, a_dim--, b_dim--)
+            {
+                long broadcast_coordinate_at_curr_dim = temp % out->shape[broadcast_dim];
+                temp /= out->shape[broadcast_dim];
+
+                if (a_dim >= 0 && a->shape[a_dim] > 1)
+                {
+                    a_data_index += broadcast_coordinate_at_curr_dim * a->strides[a_dim];
+                }
+
+                if (b_dim >= 0 && b->shape[b_dim] > 1)
+                {
+                    b_data_index += broadcast_coordinate_at_curr_dim * b->strides[b_dim];
+                }
+            }
+
+            status = matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m);
+            if (status < 0)
+            {
+                return status;
+            }
+        }
         return 0;
     }
 }
