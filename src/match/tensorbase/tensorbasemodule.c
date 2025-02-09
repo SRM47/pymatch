@@ -182,6 +182,9 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
     {"sigmoid_", (PyCFunction)PyTensorBase_sigmoid_, METH_NOARGS, "In-place sigmoid."},
     {"sigmoid", (PyCFunction)PyTensorBase_sigmoid, METH_NOARGS, "Out-of-place sigmoid."},
 
+    {"relu_", (PyCFunction)PyTensorBase_relu_, METH_NOARGS, "In-place relu."},
+    {"relu", (PyCFunction)PyTensorBase_relu, METH_NOARGS, "Out-of-place relu."},
+
     {"zero_", (PyCFunction)PyTensorBase_zero_, METH_NOARGS, "In-place zero."},
 
     {"item", (PyCFunction)PyTensorBase_item, METH_NOARGS, "Transpose the array."},
@@ -577,6 +580,9 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
 
     return (PyObject *)result;
 }
+
+static PyObject *PyTensorBase_relu_(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_RELU); }
+static PyObject *PyTensorBase_relu(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation(self, SCALAR_RELU); }
 
 static PyObject *PyTensorBase_abs_(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation_inplace(self, SCALAR_ABSOLUTE); }
 static PyObject *PyTensorBase_abs(PyObject *self, PyObject *Py_UNUSED(args)) { return PyTensorBase_nb_unary_operation(self, SCALAR_ABSOLUTE); }

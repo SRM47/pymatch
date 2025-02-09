@@ -43,7 +43,8 @@ typedef enum
     SCALAR_TANH,
     SCALAR_LOG,
     SCALAR_EXP,
-    SCALAR_SIGMOID
+    SCALAR_SIGMOID,
+    SCALAR_RELU
 } UnaryScalarOperation;
 
 // Definition of a TensorBase struct.

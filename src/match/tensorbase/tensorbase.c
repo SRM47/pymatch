@@ -520,6 +520,9 @@ static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
     case SCALAR_SIGMOID:
         *result = 1.0 / (1.0 + exp(-a));
         break;
+    case SCALAR_RELU:
+        *result = max(0, a);
+        break;
     default:
         break;
     }
@@ -577,7 +580,7 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uo
     return 0;
 }
 
-// TODO: Implement
+
 int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
@@ -757,7 +760,7 @@ int matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out
 
     return 0;
 }
-// TODO: Implement
+
 int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
