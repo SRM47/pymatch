@@ -252,7 +252,7 @@ void TensorBase_to_string(TensorBase *tb)
  *                     Braodcasting                      *
  *********************************************************/
 
-static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArray broadcast_shape, long *broadcast_ndim)
+static int TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, ShapeArray b_shape, long b_ndim, ShapeArray broadcast_shape, long *broadcast_ndim)
 {
     // Initialize broadcast_shape with -1 to indicate dimensions that haven't been determined yet.
     for (size_t i = 0; i < MAX_RANK; i++)
@@ -261,26 +261,26 @@ static int TensorBase_get_broadcast_shape(TensorBase *a, TensorBase *b, ShapeArr
     }
 
     // Determine the maximum rank (number of dimensions)
-    *broadcast_ndim = max_long(a->ndim, b->ndim);
+    *broadcast_ndim = max_long(a_ndim, b_ndim);
 
     // Broadcast dimensions
-    long a_index = a->ndim - 1;
-    long b_index = b->ndim - 1;
+    long a_index = a_ndim - 1;
+    long b_index = b_ndim - 1;
     long out_index = *broadcast_ndim - 1;
 
     for (; out_index >= 0; out_index--, a_index--, b_index--)
     {
-        if ((a_index >= 0 && a->shape[a_index] == 1) || (a_index < 0 && b_index >= 0))
+        if ((a_index >= 0 && a_shape[a_index] == 1) || (a_index < 0 && b_index >= 0))
         {
-            broadcast_shape[out_index] = b->shape[b_index];
+            broadcast_shape[out_index] = b_shape[b_index];
         }
-        else if ((b_index >= 0 && b->shape[b_index] == 1) || (b_index < 0 && a_index >= 0))
+        else if ((b_index >= 0 && b_shape[b_index] == 1) || (b_index < 0 && a_index >= 0))
         {
-            broadcast_shape[out_index] = a->shape[a_index];
+            broadcast_shape[out_index] = a_shape[a_index];
         }
-        else if (a->shape[a_index] == b->shape[b_index])
+        else if (a_shape[a_index] == b_shape[b_index])
         {
-            broadcast_shape[out_index] = a->shape[a_index];
+            broadcast_shape[out_index] = a_shape[a_index];
         }
         else
         {
@@ -441,7 +441,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
         // They don't have the same shape must *attempt to* broadcast.
         ShapeArray broadcasted_tensor_shape;
         long broadcasted_tensor_ndim;
-        if (TensorBase_get_broadcast_shape(a, b, broadcasted_tensor_shape, &broadcasted_tensor_ndim) == -1)
+        if (TensorBase_get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcasted_tensor_shape, &broadcasted_tensor_ndim) == -1)
         {
             // Incompatible broadcasting shapes.
             return -1;
@@ -578,42 +578,213 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uo
 }
 
 // TODO: Implement
-int TensorBase_get_matrix_multiplication_shape(TensorBase *a, TensorBase *b, ShapeArray *out)
+int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
 {
-    return -2;
-    // TODO: relax the requirement for 2D tensors
-    if (a->ndim != 2 || b->ndim != 2)
+    if (a == NULL || b == NULL || out == NULL)
     {
         return -1;
     }
 
-    if (a->shape[1] != b->shape[0])
+    if (TensorBase_is_singleton(a) || TensorBase_is_singleton(b))
     {
         return -1;
     }
 
-    (*out)[0] = a->shape[0];
-    (*out)[1] = b->shape[1];
+    ShapeArray shape;
+    StrideArray strides;
+    long ndim;
+    long numel;
 
-    return 1;
+    if (a->ndim == 1 && b->ndim == 1)
+    {
+        if (a->numel != b->numel)
+        {
+            return -1;
+        }
+        ndim = 0;
+        numel = 1;
+    }
+    else if (a->ndim == 1 && b->ndim == 2)
+    {
+        if (a->shape[0] != b->shape[0])
+        {
+            return -1;
+        }
+        shape[0] = b->shape[1];
+        strides[0] = 1;
+        ndim = 1;
+        numel = b->shape[1];
+    }
+    else if (a->ndim == 2 && b->ndim == 1)
+    {
+        if (a->shape[1] != b->shape[0])
+        {
+            return -1;
+        }
+        shape[0] = a->shape[0];
+        strides[0] = 1;
+        ndim = 1;
+        numel = a->shape[0];
+    }
+    else if (a->ndim == 2 && b->ndim == 2)
+    {
+        if (a->shape[1] != b->shape[0])
+        {
+            return -1;
+        }
+        shape[0] = a->shape[0];
+        shape[1] = b->shape[1];
+        strides[0] = b->shape[1];
+        strides[1] = 1;
+        ndim = 2;
+        numel = a->shape[0] * b->shape[1];
+    }
+    else
+    { // are shapes compatible.
+        long matrix_dims_a = a->ndim > 1 ? 2 : 1;
+        long matrix_dims_b = b->ndim > 1 ? 2 : 1;
+        long batch_dims_a = a->ndim - matrix_dims_a; // Number of non matrix dimensions in a
+        long batch_dims_b = b->ndim - matrix_dims_b; // Number of non-matrix dimensions in b
+
+        // matrix dimensions begin at batch_dims + 1
+        // if a.shape = [2,3,4,5,6]
+        // batch dims are [2,3,4] (batch_dim_a = 3)
+        // so matrix dims are [5,6], or shape[batch_dim_a] and shape[batch_dim_a+1].
+        if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
+        {
+            return -2;
+        }
+
+        long non_matrix_dims;
+        // Broadcast the non-matrx dimensions.
+        if (TensorBase_get_broadcast_shape(a->shape, batch_dims_a, b->shape, batch_dims_b, shape, &non_matrix_dims) == -1)
+        {
+            return -2;
+        }
+
+        ndim = non_matrix_dims;
+        if (matrix_dims_a == 1)
+        {
+            shape[non_matrix_dims] = b->shape[batch_dims_b + 1];
+            ndim += 1;
+        }
+        else if (matrix_dims_b == 1)
+        {
+            shape[non_matrix_dims] = a->shape[batch_dims_a];
+            ndim += 1;
+        }
+        else
+        {
+            shape[non_matrix_dims] = a->shape[batch_dims_a];
+            shape[non_matrix_dims + 1] = b->shape[batch_dims_b + 1];
+            ndim += 2;
+        }
+
+        // Calculate numel and strides
+        // Calculate Tensorbase shape and number of elements.
+        long numel_for_stride = 1;
+        numel = 1;
+        for (int i = 0; i < ndim; i++)
+        {
+            long dim = shape[i];
+            numel *= dim;
+            if (dim > 0)
+            {
+                numel_for_stride *= dim;
+            }
+        }
+
+        // Calculate Tensorbase strides.
+        long stride = numel_for_stride;
+        for (long i = 0; i < ndim; i++)
+        {
+            long dim = shape[i];
+            if (dim > 0)
+            {
+                stride /= dim;
+            }
+            strides[i] = stride;
+        }
+    }
+
+    for (long i = ndim; i < MAX_RANK; i++)
+    {
+        shape[i] = -1;
+        strides[i] = 0;
+    }
+    memcpy(&out->shape, &shape, sizeof(scalar) * MAX_RANK);
+    memcpy(&out->strides, &strides, sizeof(scalar) * MAX_RANK);
+    out->numel = numel;
+    out->ndim = ndim;
+    if (ndim > 0)
+    {
+        out->data = (scalar *)malloc(numel * sizeof(scalar));
+    }
+
+
+
+    return 0;
 }
 
+int matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out)
+{
+    // Assumes A is a n x l matrix
+    // Assumes B is a l x m matrix
+    // out = A@B will be a n x m matrix
+    // Assumes out is already allocated
+    for (long i = 0; i < n; i++)
+    {
+        for (long j = 0; j < m; j++)
+        {
+            scalar sum = 0;
+            for (long k = 0; k < l; k++)
+            {
+                sum += A[i * l + k] * B[k * m + j];
+            }
+            out[i * m + j] = sum;
+        }
+    }
+
+    return 0;
+}
 // TODO: Implement
 int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
-    return -2;
-
-    for (long i = 0; i < a->shape[0]; i++)
+    if (a == NULL || b == NULL || out == NULL)
     {
-        for (long j = 0; j < b->shape[1]; j++)
+        return -1;
+    }
+
+    int status = TensorBase_initialize_for_matrix_multiplication(a, b, out);
+    if (status < 0)
+    {
+        return status;
+    }
+
+    if (a->ndim == 1 && b->ndim == 1)
+    {
+        scalar sum = 0;
+        for (long i = 0; i < a->numel; i++)
         {
-            scalar sum = 0;
-            for (long k = 0; k < a->shape[1]; k++)
-            {
-                sum += a->data[i * a->shape[1] + k] * b->data[k * b->shape[1] + j];
-            }
-            out->data[i * out->shape[1] + j] = sum;
+            sum += a->data[i] * b->data[i];
         }
+        memcpy(&out->data, &sum, sizeof(scalar));
+    }
+    else if (a->ndim == 1 && b->ndim == 2)
+    {
+        return matrix_multiply_2d(a->data, b->data, 1, a->shape[0], b->shape[1], out->data);
+    }
+    else if (a->ndim == 2 && b->ndim == 1)
+    {
+        return matrix_multiply_2d(a->data, b->data, a->shape[0], b->shape[0], 1, out->data);
+    }
+    else if (a->ndim == 2 && b->ndim == 2)
+    {
+        return matrix_multiply_2d(a->data, b->data, a->shape[0], a->shape[1], b->shape[1], out->data);
+    }
+    else
+    {
+        return 0;
     }
 }
 

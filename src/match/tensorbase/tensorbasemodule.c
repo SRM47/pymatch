@@ -559,10 +559,20 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     TensorBase *l = &(((PyTensorBase *)a)->tb);
     TensorBase *r = &(((PyTensorBase *)b)->tb);
 
-    if (TensorBase_matrix_multiply(l, r, &(result->tb)) < 0)
+    int status = TensorBase_matrix_multiply(l, r, &(result->tb));
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error in matrix multiply.");
-        return NULL;
+        case -1:
+            PyErr_SetString(PyExc_RuntimeError, "Memory error");
+            return NULL;
+        case -2:
+            PyErr_SetString(PyExc_RuntimeError, "A or B must be singleton!");
+            return NULL;
+        case -3:
+            PyErr_SetString(PyExc_NotImplementedError, "ndnd matrix mul isn't supported:)");
+            return NULL;
+        default:
+            break;
     }
 
     return (PyObject *)result;

@@ -13,10 +13,20 @@ def make_tensorbases(shape, num_tensorbases):
 
 
 if __name__ == "__main__":
-    t1, t2 = make_tensorbases((1,), 2)
-    t1.fill_(2)
-    t3, t4 = make_tensorbases((2, 1, 4), 2)
-    t3.fill_(2)
-    print(t1)
-    print(t1.reshape(()))
-    print(t1)
+    m1, m2 = make_tensorbases((4,4,4), 2)
+    m1.fill_(2)
+    m2.fill_(3)
+
+    m3, m4 = make_tensorbases((1,4), 2)
+    m3.fill_(4)
+    m4.fill_(2)
+    m4.reshape_((4, 1))
+
+    m5, m6 = make_tensorbases((4,), 2)
+    m5.fill_(6)
+    m6.fill_(7)
+
+    print(m3)
+    print(m2)
+    print(m3@m2)
+
