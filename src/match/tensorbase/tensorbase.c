@@ -580,7 +580,6 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uo
     return 0;
 }
 
-
 int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
@@ -1036,7 +1035,29 @@ int TensorBase_fill_(TensorBase *in, scalar fill_value)
 
     return 0;
 }
-int TensorBase_randn_(TensorBase *in) { return -2; }
+int TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
+{
+    // Assumes tensor is already initialized. Just filling the data with random, normallu distributed values.
+    if (TensorBase_is_singleton(in))
+    {
+        randn_pair pair = randn(mu, sigma);
+        memcpy(&in->data, &pair.a, sizeof(scalar));
+        return 0;
+    }
+
+    scalar *data = in->data;
+    for (long index = 0; index < in->numel; index += 2)
+    {
+        randn_pair pair = randn(mu, sigma);
+        data[index] = pair.a;
+        if (index + 1 < in->numel)
+        {
+            data[index + 1] = pair.b;
+        }
+    }
+
+    return 0;
+}
 
 int TensorBase_item(TensorBase *t, scalar *item)
 {

@@ -150,6 +150,8 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args);
 
 static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args);
 
+static PyObject *PyTensorBase_randn_(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
@@ -198,11 +200,13 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"fill_", (PyCFunction)PyTensorBase_fill_, METH_O, "In-place fill."},
 
-    {"max", (PyCFunction)PyTensorBase_max, METH_FASTCALL, "Compute the maximum value."},
-    {"min", (PyCFunction)PyTensorBase_min, METH_FASTCALL, "Compute the minimum value."},
+    {"randn_", (PyCFunctionFast)PyTensorBase_randn_, METH_FASTCALL, "In-place randn."},
+
+    {"max", (PyCFunctionFast)PyTensorBase_max, METH_FASTCALL, "Compute the maximum value."},
+    {"min", (PyCFunctionFast)PyTensorBase_min, METH_FASTCALL, "Compute the minimum value."},
     // (PyCFunctionFast)
-    {"mean", (PyCFunction)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
-    {"sum", (PyCFunction)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
+    {"mean", (PyCFunctionFast)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
+    {"sum", (PyCFunctionFast)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
 
     {"broadcast_to", (PyCFunction)PyTensorBase_broadcast_to, METH_O, "Broadcast the array to a new shape."},
     {"permute", (PyCFunction)PyTensorBase_permute, METH_O, "Permute the dimensions of the array."},
@@ -235,19 +239,6 @@ static PyGetSetDef PyTensorBase_getset[] = {
     {"numel", (getter)PyTensorBase_get_numel, NULL, "Number of elements in Tensor", NULL},
     {"stride", (getter)PyTensorBase_get_stride, NULL, "Strides of tensor", NULL},
     {"_raw_data", (getter)PyTensorBase_get_raw_data, NULL, "The raw data of the tensorbase.", NULL},
-    {NULL} /* Sentinel */
-};
-
-/*********************************************************
- *                 Class/Module Methods                  *
- *********************************************************/
-
-static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args);
-static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args);
-
-static PyMethodDef PyTensorBase_class_methods[] = {
-    {"ones", (PyCFunction)PyTensorBase_ones, METH_VARARGS, "TODO: docs"},
-    {"randn", (PyCFunction)PyTensorBase_randn, METH_VARARGS, "TODO: docs"},
     {NULL} /* Sentinel */
 };
 
@@ -350,7 +341,7 @@ static PyModuleDef TensorBaseModule = {
     .m_name = "tensorbase",
     .m_doc = PyDoc_STR("TODO: docs"),
     .m_size = -1,
-    .m_methods = PyTensorBase_class_methods,
+    .m_methods = 0,
 };
 
 PyMODINIT_FUNC
@@ -568,17 +559,17 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     int status = TensorBase_matrix_multiply(l, r, &(result->tb));
     switch (status)
     {
-        case -1:
-            PyErr_SetString(PyExc_RuntimeError, "Memory error");
-            return NULL;
-        case -2:
-            PyErr_SetString(PyExc_RuntimeError, "A or B can't be singleton!");
-            return NULL;
-        case -3:
-            PyErr_SetString(PyExc_NotImplementedError, "ndnd matrix mul isn't supported:)");
-            return NULL;
-        default:
-            break;
+    case -1:
+        PyErr_SetString(PyExc_RuntimeError, "Memory error");
+        return NULL;
+    case -2:
+        PyErr_SetString(PyExc_RuntimeError, "A or B can't be singleton!");
+        return NULL;
+    case -3:
+        PyErr_SetString(PyExc_NotImplementedError, "ndnd matrix mul isn't supported:)");
+        return NULL;
+    default:
+        break;
     }
 
     return (PyObject *)result;
@@ -876,16 +867,35 @@ static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUS
     return raw_data;
 }
 
-static PyObject *PyTensorBase_ones(PyModuleDef *module, PyObject *args)
+static PyObject *PyTensorBase_randn_(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
-    return NULL;
-}
+    if (nargs != 2)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Must be exactly 2 arguments, expected mu, sigma");
+        return NULL;
+    }
+    if (!(PyFloatOrLong_Check(args[0]) && PyFloatOrLong_Check(args[1])))
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Must be a number!");
+        return NULL;
+    }
 
-static PyObject *PyTensorBase_randn(PyModuleDef *module, PyObject *args)
-{
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
-    return NULL;
+    scalar mu = PyLong_AsDouble(args[0]);
+    scalar sigma = PyLong_AsDouble(args[1]);
+
+    if (PyErr_Occurred())
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error fill value");
+        return NULL;
+    }
+
+    TensorBase *t = &((PyTensorBase *)self)->tb;
+    if (TensorBase_randn_(t, mu, sigma) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
+        return NULL;
+    }
+    Py_RETURN_NONE;
 }
 
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)

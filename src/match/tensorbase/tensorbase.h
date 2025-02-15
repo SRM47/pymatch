@@ -109,7 +109,7 @@ EXPORT int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
 EXPORT int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim);
 
 EXPORT int TensorBase_fill_(TensorBase *in, scalar fill_value);
-EXPORT int TensorBase_randn_(TensorBase *in);
+EXPORT int TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma);
 
 EXPORT int TensorBase_item(TensorBase *t, scalar *item);
 
