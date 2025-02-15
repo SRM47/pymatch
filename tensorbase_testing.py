@@ -14,5 +14,8 @@ def make_tensorbases(shape, num_tensorbases = 2):
 
 if __name__ == "__main__":
     m1, m2 = make_tensorbases((2,3,4))
-    print(m1)
+    m2.fill_(5)
+    print(m2)
+    print(m2.max((), False))
+    print(m2.min((), False))
 

@@ -47,6 +47,13 @@ typedef enum
     SCALAR_RELU
 } UnaryScalarOperation;
 
+// Enum for aggregation operations (max, min, sum, mean).
+typedef enum
+{
+    SCALAR_AGG_SUM,
+    SCALAR_AGG_MEAN
+} AggScalarOperation;
+
 // Definition of a TensorBase struct.
 typedef struct _TensorBase
 {
@@ -96,7 +103,7 @@ EXPORT int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *
  *                      Aggregation                      *
  *********************************************************/
 
-EXPORT int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, scalar (*aggregate)(scalar *, long));
+EXPORT int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, AggScalarOperation agg);
 
 /*********************************************************
  *                     Manipulation                      *

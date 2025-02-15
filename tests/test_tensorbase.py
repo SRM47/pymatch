@@ -3,7 +3,7 @@ import torch
 from .base import BaseUnitTest
 import itertools
 from match import prod
-from match.tensorbase import TensorBase, randn
+from match.tensorbase import TensorBase
 import operator
 from typing import Callable
 from random import gauss
@@ -43,9 +43,11 @@ class TestTensorBase(BaseUnitTest):
         return mat, ten
 
     def almost_equal(self, match_tensorbase, torch_tensor) -> bool:
+        print(match_tensorbase)
+        print(torch_tensor)
         self.assertTrue(
             torch.allclose(
-                self.to_tensor(match_tensorbase).float(),
+                self.to_tensor(match_tensorbase),
                 torch_tensor.float(),
                 rtol=1e-02,
                 atol=1e-05,
@@ -303,28 +305,28 @@ class TestTensorBase(BaseUnitTest):
     def test_sum(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=3)
         with self.subTest(msg="dim"):
-            self.almost_equal(match_tensor.sum((0,)), torch_tensor.sum((0,)))
-            self.almost_equal(match_tensor.sum((0, 1)), torch_tensor.sum((0, 1)))
+            self.almost_equal(match_tensor.sum((0,), False), torch_tensor.sum((0,)))
+            self.almost_equal(match_tensor.sum((0, 1), False), torch_tensor.sum((0, 1)))
         with self.subTest(msg="keepdim"):
             self.almost_equal(
-                match_tensor.sum((1, 2), keepdim=True),
+                match_tensor.sum((1, 2), True),
                 torch_tensor.sum((1, 2), keepdim=True),
             )
         with self.subTest(msg="nodim"):
-            self.assertTrue(self.almost_equal(match_tensor.sum(), torch_tensor.sum()))
+            self.almost_equal(match_tensor.sum((), False), torch_tensor.sum())
 
     def test_mean(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=4)
         with self.subTest(msg="dim"):
-            self.almost_equal(match_tensor.mean((0,)), torch_tensor.mean((0,)))
-            self.almost_equal(match_tensor.mean((0, 1)), torch_tensor.mean((0, 1)))
+            self.almost_equal(match_tensor.mean((0,), False), torch_tensor.mean((0,)))
+            self.almost_equal(match_tensor.mean((0, 1), False), torch_tensor.mean((0, 1)))
         with self.subTest(msg="keepdim"):
             self.almost_equal(
-                match_tensor.mean((1, 2), keepdim=True),
+                match_tensor.mean((1, 2), True),
                 torch_tensor.mean((1, 2), keepdim=True),
             )
         with self.subTest(msg="nodim"):
-            self.assertTrue(self.almost_equal(match_tensor.mean(), torch_tensor.mean()))
+            self.almost_equal(match_tensor.mean((), False), torch_tensor.mean())
 
     # TODO: Implement configurations that are intended to fail.
     def test_matmul_various_shapes_failure(self):

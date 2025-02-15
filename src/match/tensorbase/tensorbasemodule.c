@@ -767,6 +767,67 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssize_t nargs, AggScalarOperation agg)
+{
+    if (nargs != 2)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Expect 2 arguments");
+        return NULL;
+    }
+
+    // Both a and b must be of type TensorBase.
+    if (!(PyTuple_Check(args[0]) && PyBool_Check(args[1])))
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid types for sum. Expected tuple, bool");
+        return NULL;
+    }
+
+    TensorBase *t = &(((PyTensorBase *)self)->tb);
+
+    IndexArray dims;
+    if (PyTuple_Size(args[0]) != 0)
+    {
+        if (arg_to_shape(args[0], dims) < 0)
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        for (long i = 0; i < t->ndim; i++)
+        {
+            dims[i] = i;
+        }
+        for (long i = t->ndim; i < MAX_RANK; i++)
+        {
+            dims[i] = -1;
+        }
+    }
+    int keepdim = PyObject_IsTrue(args[1]);
+    if (keepdim == -1)
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid types for sum. Expected tuple, booll");
+        return NULL;
+    }
+
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create new TensorBase object.");
+        return NULL;
+    }
+
+    int status = TensorBase_aggregate(t, dims, keepdim, &(result->tb), agg);
+    if (status < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error aggregate");
+        return NULL;
+    }
+
+    return (PyObject *)result;
+}
+
+
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_max is not implemented");
@@ -781,14 +842,12 @@ static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssiz
 
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_mean is not implemented");
-    return NULL;
+   return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_MEAN);
 }
 
 static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_sum is not implemented");
-    return NULL;
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_SUM);
 }
 
 static PyObject *PyTensorBase_broadcast_to(PyObject *self, PyObject *args)
