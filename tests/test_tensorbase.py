@@ -359,10 +359,18 @@ class TestTensorBase(BaseUnitTest):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=2)
         self.assertTrue(self.almost_equal(match_tensor.T, torch_tensor.T))
 
-    # TODO: Add condition to test the same references.
     def test_permute(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=5)
-        self.almost_equal(match_tensor.permute(2, 0, 1), torch_tensor.permute(2, 0, 1))
+        self.almost_equal(match_tensor.permute((2, 0, 1)), torch_tensor.permute(2, 0, 1))
+        self.almost_equal(match_tensor.permute((0, 1, 2)), torch_tensor.permute(0, 1, 2))
+        self.assertRaises(RuntimeError, lambda: match_tensor.permute((2,)))
+        self.assertRaises(RuntimeError, lambda: match_tensor.permute((-1,)))
+        self.assertRaises(RuntimeError, lambda: match_tensor.permute((3, 0, 2, 1)))
+        self.assertRaises(RuntimeError, lambda: match_tensor.permute((0, 0, 1)))
+        match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=5)
+        self.almost_equal(match_tensor.permute(()), torch_tensor.permute())
+        self.assertRaises(RuntimeError, lambda: match_tensor.permute((0,)))
+
 
     # TODO: Add condition to test the same references.
     def test_reshape(self):

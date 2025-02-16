@@ -858,8 +858,26 @@ static PyObject *PyTensorBase_broadcast_to(PyObject *self, PyObject *args)
 
 static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_permute is not implemented");
-    return NULL;
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+
+    TensorBase *in = &((PyTensorBase *)self)->tb;
+    TensorBase *out = &((PyTensorBase *)result)->tb;
+
+    IndexArray permutation;
+    long ndim = arg_to_shape(args, permutation);
+    if (ndim == -1)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "error here");
+        return NULL;
+    }
+    
+    if (TensorBase_permute(in, permutation, out) < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "error in permutation");
+        return NULL;
+    }
+
+    return (PyObject *)result;
+    
 }
 
 static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args)

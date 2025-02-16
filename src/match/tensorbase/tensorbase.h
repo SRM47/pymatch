@@ -109,7 +109,6 @@ EXPORT int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, Ten
  *                     Manipulation                      *
  *********************************************************/
 
-EXPORT int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation);
 EXPORT int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out);
 
 EXPORT int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim);

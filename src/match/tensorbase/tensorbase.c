@@ -930,7 +930,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     scalar num_agg_elem = in->numel / out->numel;
 
     // Loop through each element in the input tensors data, and map what position in the aggregated tensors data.
-    scalar temp_out_data[out->numel];// init problemf or max min
+    scalar temp_out_data[out->numel]; // init problemf or max min
     for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
     {
         // For each element in the data index, calculate the corresponding
@@ -1000,8 +1000,75 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
  *                     Manipulation                      *
  *********************************************************/
 
-int TensorBase_permute_inplace(TensorBase *in, IndexArray permutation) { return -2; }
-int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out) { return -2; }
+int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
+{
+    if (in == NULL || out == NULL)
+    {
+        return -1;
+    }
+
+    if (TensorBase_is_singleton(in))
+    {
+        if (permutation[0] >= 0)
+        {
+            return -1;
+        }
+        return TensorBase_create_empty_like(in, out);
+    }
+
+    // Check if permutation is a valid permutation
+    ShapeArray permuted_shape;
+    IndexArray seen_dimensions;
+    memset(seen_dimensions, 0, sizeof(scalar) * MAX_RANK);
+    long dim = 0;
+    for (; dim < in->ndim; dim++)
+    {
+        if (permutation[dim] < 0)
+        {
+            return -1;
+        }
+        if (permutation[dim] >= in->ndim)
+        {
+            return -1;
+        }
+        if (seen_dimensions[permutation[dim]] != 0)
+        {
+            return -1; // Duplicate
+        }
+        seen_dimensions[permutation[dim]] = 1;
+        permuted_shape[dim] = in->shape[permutation[dim]];
+    }
+
+    if (TensorBase_init(out, permuted_shape, in->ndim) < 0)
+    {
+        return -1;
+    }
+
+    for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
+    {
+        // For each element in the data index, calculate the corresponding
+        // element in each of the input tensors.
+        long out_data_index = 0;
+
+        IndexArray in_coord;
+        for (long dim = in->ndim - 1, temp = in_data_index; dim >= 0; dim--)
+        {
+            in_coord[dim] = temp % in->shape[dim];
+            temp /= in->shape[dim];
+        }
+
+        for (long out_dim = 0; out_dim < out->ndim; out_dim++)
+        {
+            out_data_index += out->strides[out_dim] * in_coord[permutation[out_dim]];
+        }
+
+        printf("%ld, %ld\n", in_data_index, out_data_index);
+
+        out->data[out_data_index] = in->data[in_data_index];
+    }
+
+    return 0;
+}
 
 int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
 {
