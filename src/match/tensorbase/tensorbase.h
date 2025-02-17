@@ -125,6 +125,3 @@ EXPORT int TensorBase_fill_(TensorBase *in, scalar fill_value);
 EXPORT int TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma);
 
 EXPORT int TensorBase_item(TensorBase *t, scalar *item);
-
-EXPORT void print_double_list(const double *list, size_t size);
-EXPORT void print_long_list(const long *list, size_t size);
