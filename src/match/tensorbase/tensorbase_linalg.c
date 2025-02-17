@@ -51,7 +51,7 @@ static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, 
     }
 }
 
-int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
+StatusCode TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
     RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
     if (TensorBase_is_singleton(a))
@@ -72,10 +72,10 @@ int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *
             apply_binop(binop, a->data[i], s, out->data + i);
         }
     }
-    return 0;
+    return OK;
 }
 
-int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
+StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
     RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
     if (TensorBase_is_singleton(a))
@@ -96,10 +96,10 @@ int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *
             apply_binop(binop, s, a->data[i], out->data + i);
         }
     }
-    return 0;
+    return OK;
 }
 
-int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, BinaryScalarOperation binop)
+StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, BinaryScalarOperation binop)
 {
     // Check if a is a singleton.
     if (TensorBase_is_singleton(a))
@@ -170,7 +170,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
         }
     }
 
-    return 0;
+    return OK;
 }
 
 static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
@@ -212,11 +212,11 @@ static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
     }
 }
 
-int TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
+StatusCode TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
 {
     if (in->data == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
     if (TensorBase_is_singleton(in))
     {
@@ -235,12 +235,18 @@ int TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
             apply_uop(uop, in->data[i], in->data + i);
         }
     }
-    return 0;
+    return OK;
 }
 
-int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop)
+StatusCode TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop)
 {
+    if (in == NULL || out == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
+
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
+
     if (TensorBase_is_singleton(in))
     {
         scalar in_value;
@@ -258,19 +264,19 @@ int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uo
             apply_uop(uop, in->data[i], out->data + i);
         }
     }
-    return 0;
+    return OK;
 }
 
-int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
+StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
 
     if (TensorBase_is_singleton(a) || TensorBase_is_singleton(b))
     {
-        return -1;
+        return MATMUL_SINGLETON;
     }
 
     ShapeArray shape;
@@ -282,7 +288,7 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
     {
         if (a->numel != b->numel)
         {
-            return -1;
+            return MATMUL_INCOMPATABLE_SHAPES;
         }
         ndim = 0;
         numel = 1;
@@ -291,7 +297,7 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
     {
         if (a->shape[0] != b->shape[0])
         {
-            return -1;
+            return MATMUL_INCOMPATABLE_SHAPES;
         }
         shape[0] = b->shape[1];
         strides[0] = 1;
@@ -302,7 +308,7 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
     {
         if (a->shape[1] != b->shape[0])
         {
-            return -1;
+            return MATMUL_INCOMPATABLE_SHAPES;
         }
         shape[0] = a->shape[0];
         strides[0] = 1;
@@ -338,16 +344,14 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
         {
             if (a->shape[batch_dims_a] != b->shape[batch_dims_b])
             {
-                printf("%ld, %ld", batch_dims_a, batch_dims_b);
-                return -2;
+                return MATMUL_INCOMPATABLE_SHAPES;
             }
         }
         else
         {
             if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
             {
-                printf("%ld, %ld", batch_dims_a, batch_dims_b);
-                return -2;
+                return MATMUL_INCOMPATABLE_SHAPES;
             }
         }
 
@@ -412,11 +416,15 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
     if (ndim > 0)
     {
         out->data = (scalar *)malloc(numel * sizeof(scalar));
+        if (out->data == NULL)
+        {
+            return MALLOC_ERR;
+        }
     }
-    return 0;
+    return OK;
 }
 
-int matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out)
+StatusCode matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out)
 {
     // Assumes A is a n x l matrix
     // Assumes B is a l x m matrix
@@ -435,14 +443,14 @@ int matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out
         }
     }
 
-    return 0;
+    return OK;
 }
 
-int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
+StatusCode TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
 
     RETURN_IF_ERROR(TensorBase_initialize_for_matrix_multiplication(a, b, out));
@@ -537,6 +545,6 @@ int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 
             RETURN_IF_ERROR(matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m));
         }
-        return 0;
+        return OK;
     }
 }

@@ -7,7 +7,7 @@
 
 #include "tensorbase.h"
 
-#define RETURN_IF_ERROR(x) ({int _status = x; if (_status < 0) { return _status; }})
+#define RETURN_IF_ERROR(x) ({StatusCode _status = x; if (_status != OK) { return _status; }})
 
 static inline long max_long(long a, long b)
 {
@@ -24,12 +24,12 @@ static inline int TensorBase_same_shape(ShapeArray a_shape, ShapeArray b_shape)
     return memcmp(a_shape, b_shape, MAX_RANK * sizeof(long)) == 0;
 }
 
-static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
+static StatusCode TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
 {
     // Assumes out->data doesn't point to any alocated memory.
     if (in == NULL || out == NULL)
     {
-        return -1; // Invalid input or output tensor
+        return NULL_INPUT_ERR; // Invalid input or output tensor
     }
 
     memcpy(out, in, sizeof(TensorBase));
@@ -39,11 +39,11 @@ static int TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
         out->data = (scalar *)malloc(in->numel * sizeof(scalar));
         if (out->data == NULL)
         {
-            return -1;
+            return MALLOC_ERR;
         }
     }
 
-    return 0;
+    return OK;
 }
 
 static void print_long_list(const long *list, size_t size)
@@ -56,7 +56,7 @@ static void print_long_list(const long *list, size_t size)
     printf("]\n");
 }
 
-static int TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, ShapeArray b_shape, long b_ndim, ShapeArray broadcast_shape, long *broadcast_ndim)
+static StatusCode TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, ShapeArray b_shape, long b_ndim, ShapeArray broadcast_shape, long *broadcast_ndim)
 {
     // Initialize broadcast_shape with -1 to indicate dimensions that haven't been determined yet.
     for (size_t i = 0; i < MAX_RANK; i++)
@@ -88,10 +88,9 @@ static int TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, Shape
         }
         else
         {
-            // Incompatible shapes.
-            return -1;
+            return INCOMPATABLE_BROASCAST_SHAPES;
         }
     }
 
-    return 0;
+    return OK;
 }

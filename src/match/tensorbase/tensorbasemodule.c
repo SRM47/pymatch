@@ -5,6 +5,12 @@
 
 #include "tensorbase.h"
 
+#define RETURN_IF_PY_ERROR \
+    if (PyErr_Occurred())  \
+    {                      \
+        return NULL;       \
+    }
+
 /*********************************************************
  *               PyTensorBase Definition                 *
  *********************************************************/
@@ -408,6 +414,7 @@ static long arg_to_shape(PyObject *arg, ShapeArray tb_shape)
 
     if (tuple_len > MAX_RANK)
     {
+        PyErr_SetString(PyExc_ValueError, "Provided shape exceeds maximum allowed rank.");
         return -1;
     }
 
@@ -452,10 +459,9 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
     return arg_to_shape(PyTuple_GetItem(args, 0), tb_shape);
 }
 
-// static PyTensorBase *PyTensorBase_shallow_broadcast(PyTensorBase *t, ShapeArray shape);
-
 static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, BinaryScalarOperation binop)
 {
+    StatusCode status = OK;
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
     {
@@ -468,40 +474,47 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, Bina
     {
         TensorBase *t = &(((PyTensorBase *)a)->tb);
         scalar s = PyFloatOrLong_asDouble(b);
-        if (TensorBase_binary_op_tensorbase_scalar(t, s, &(result->tb), binop) < 0)
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
-            return NULL;
-        }
+        status = TensorBase_binary_op_tensorbase_scalar(t, s, &(result->tb), binop);
     }
     // (Long | Float) + PyTensorBase
     else if (PyFloatOrLong_Check(a) && PyTensorBase_Check(b))
     {
         TensorBase *t = &(((PyTensorBase *)b)->tb);
         scalar s = PyFloatOrLong_asDouble(a);
-        if (TensorBase_binary_op_scalar_tensorbase(t, s, &(result->tb), binop) < 0)
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
-            return NULL;
-        }
+        status = TensorBase_binary_op_scalar_tensorbase(t, s, &(result->tb), binop);
     }
     // PyTensorBase + PyTensorBase
     else if (PyTensorBase_Check(a) && PyTensorBase_Check(b))
     {
         TensorBase *l = &(((PyTensorBase *)a)->tb);
         TensorBase *r = &(((PyTensorBase *)b)->tb);
-        if (TensorBase_binary_op_tensorbase_tensorbase(l, r, &(result->tb), binop) < 0)
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Error performing binary operation");
-            return NULL;
-        }
+        status = TensorBase_binary_op_tensorbase_tensorbase(l, r, &(result->tb), binop);
     }
     // Incompatible types for mathematical binary operations
     else
     {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for addition.");
+        PyErr_SetString(PyExc_ValueError, "Invalid types for addition. Either argument must be Tensor (non-singleton), Float, or Integer.");
+    }
+
+    // Check Error Codes
+    switch (status)
+    {
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
+        return NULL;
+    case INCOMPATABLE_BROASCAST_SHAPES:
+        PyErr_SetString(PyExc_RuntimeError, "Incompatable shapes to broadcast for binary operation.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error Occured.");
         return NULL;
     }
+
     return (PyObject *)result;
 }
 
@@ -515,9 +528,21 @@ static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, UnaryScalarOperati
     }
 
     TensorBase *in = &(((PyTensorBase *)a)->tb);
-    if (TensorBase_unary_op(in, &(result->tb), uop) < 0)
+    StatusCode status = TensorBase_unary_op(in, &(result->tb), uop);
+
+    // Check Error Codes
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error performing unary operation");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error Occured.");
         return NULL;
     }
 
@@ -528,9 +553,19 @@ static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, UnaryScala
 {
     // Assumes input PyObject is already of type PyTensorBase.
     TensorBase *in = &(((PyTensorBase *)a)->tb);
-    if (TensorBase_unary_op_inplace(in, uop) < 0)
+    StatusCode status = TensorBase_unary_op_inplace(in, uop);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error performing inplace unary operation");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error Occured.");
         return NULL;
     }
 
@@ -564,20 +599,26 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     TensorBase *l = &(((PyTensorBase *)a)->tb);
     TensorBase *r = &(((PyTensorBase *)b)->tb);
 
-    int status = TensorBase_matrix_multiply(l, r, &(result->tb));
+    StatusCode status = TensorBase_matrix_multiply(l, r, &(result->tb));
     switch (status)
     {
-    case -1:
-        PyErr_SetString(PyExc_RuntimeError, "Memory error");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to matmul method.");
         return NULL;
-    case -2:
-        PyErr_SetString(PyExc_RuntimeError, "A or B can't be singleton!");
+    case MATMUL_SINGLETON:
+        PyErr_SetString(PyExc_RuntimeError, "Matrix multiplication is not supported for singleton (ndim = 0) operands. Both operands must be at least 1 dimensional.");
         return NULL;
-    case -3:
-        PyErr_SetString(PyExc_NotImplementedError, "ndnd matrix mul isn't supported:)");
+    case MATMUL_INCOMPATABLE_SHAPES:
+        PyErr_SetString(PyExc_RuntimeError, "Incompatable shapes for matrix multiplication.");
+        return NULL;
+    case INCOMPATABLE_BROASCAST_SHAPES:
+        PyErr_SetString(PyExc_RuntimeError, "Unbroadcastable shapes for matrix multiplication.");
         return NULL;
     default:
-        break;
+        PyErr_SetString(PyExc_RuntimeError, "Unknown error occured in matrix multiplication.");
+        return NULL;
     }
 
     return (PyObject *)result;
@@ -669,11 +710,13 @@ static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args))
 {
     scalar item;
     TensorBase *t = &((PyTensorBase *)self)->tb;
-    if (TensorBase_item(t, &item) < 0)
+    StatusCode status = TensorBase_item(t, &item);
+    if (status == ITEM_NUMEL_NOT_ONE)
     {
-        PyErr_SetString(PyExc_NotImplementedError, "Not singleton or numel isn't 1!");
+        PyErr_SetString(PyExc_NotImplementedError, "item() is supported only for tensors with only 1 element (numel = 1).");
         return NULL;
     }
+
     return PyFloat_FromDouble(item);
 }
 
@@ -682,30 +725,33 @@ static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
     TensorBase *t = &((PyTensorBase *)self)->tb;
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
-    if (ndim == -1)
+    if (ndim < 0)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
-    int status = TensorBase_reshape_inplace(t, shape, ndim);
-    if (status == -1)
+
+    StatusCode status = TensorBase_reshape_inplace(t, shape, ndim);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape_");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    }
-    if (status == -2)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    }
-    if (status == -3)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
+    case INVALID_DIMENSION_SIZE:
+        PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    }
-    if (status == -4)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
+    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return NULL;
     }
 
@@ -721,30 +767,33 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
 
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
-    if (ndim == -1)
+    if (ndim < 0)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
-    int status = TensorBase_reshape(in, out, shape, ndim);
-    if (status == -1)
+
+    StatusCode status = TensorBase_reshape(in, out, shape, ndim);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Memory issue with reshape");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    }
-    if (status == -2)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape must be all positive!");
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    }
-    if (status == -3)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape must have correct number of elements");
+    case INVALID_DIMENSION_SIZE:
+        PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    }
-    if (status == -4)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Shape dimension too high!");
+    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return NULL;
     }
 
@@ -755,23 +804,31 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
 {
     if (!PyFloatOrLong_Check(args))
     {
-        PyErr_SetString(PyExc_RuntimeError, "Must be a number!");
+        PyErr_SetString(PyExc_RuntimeError, "Operand must be a Float or Integer.");
         return NULL;
     }
     scalar fill_value = PyFloatOrLong_asDouble(args);
 
     if (PyErr_Occurred())
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error fill value");
+        PyErr_SetString(PyExc_RuntimeError, "Unable to parse provided scalar.");
         return NULL;
     }
 
     TensorBase *t = &((PyTensorBase *)self)->tb;
-    if (TensorBase_fill_(t, fill_value) < 0)
+    StatusCode status = TensorBase_fill_(t, fill_value);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to fill_.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error in fill_.");
         return NULL;
     }
+
     Py_RETURN_NONE;
 }
 
@@ -814,7 +871,7 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
     int keepdim = PyObject_IsTrue(args[1]);
     if (keepdim == -1)
     {
-        PyErr_SetString(PyExc_ValueError, "Invalid types for sum. Expected tuple, booll");
+        PyErr_SetString(PyExc_ValueError, "Invalid argument types for sum(). Expected tuple[int], bool");
         return NULL;
     }
 
@@ -825,10 +882,31 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
         return NULL;
     }
 
-    int status = TensorBase_aggregate(t, dims, keepdim, &(result->tb), agg);
-    if (status < 0)
+    StatusCode status = TensorBase_aggregate(t, dims, keepdim, &(result->tb), agg);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error aggregate");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
+        return NULL;
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
+        return NULL;
+    case INVALID_DIMENSION_SIZE:
+        PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
+        return NULL;
+    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return NULL;
+    case DUPLICATE_AGGREGATION_DIM:
+        PyErr_SetString(PyExc_RuntimeError, "Duplicate dimension provided in dims to aggregate over.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return NULL;
     }
 
@@ -872,15 +950,35 @@ static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
 
     IndexArray permutation;
     long ndim = arg_to_shape(args, permutation);
-    if (ndim == -1)
+    if (ndim < 0)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
 
-    if (TensorBase_permute(in, permutation, out) < 0)
+    StatusCode status = TensorBase_permute(in, permutation, ndim, out);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error in permutation");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to permute.");
+        return NULL;
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return NULL;
+    case PERMUTATION_DUPLICATE_DIM:
+    case PERMUTATION_INCORRECT_NDIM:
+    case INVALID_DIMENSION:
+        PyErr_SetString(PyExc_RuntimeError, "Invalid permutation provided. Must be a valid permutation of numbers from 0 to ndim-1.");
+        return NULL;
+    case INVALID_DIMENSION_SIZE:
+        PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return NULL;
     }
 
@@ -955,12 +1053,12 @@ static PyObject *PyTensorBase_randn_(PyObject *self, PyObject *const *args, Py_s
 {
     if (nargs != 2)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Must be exactly 2 arguments, expected mu, sigma");
+        PyErr_SetString(PyExc_RuntimeError, "Must be exactly 2 arguments, expected Float|Int, Float|Int.");
         return NULL;
     }
     if (!(PyFloatOrLong_Check(args[0]) && PyFloatOrLong_Check(args[1])))
     {
-        PyErr_SetString(PyExc_RuntimeError, "Must be a number!");
+        PyErr_SetString(PyExc_RuntimeError, "Must be exactly 2 arguments, expected Float|Int, Float|Int.");
         return NULL;
     }
 
@@ -969,51 +1067,60 @@ static PyObject *PyTensorBase_randn_(PyObject *self, PyObject *const *args, Py_s
 
     if (PyErr_Occurred())
     {
-        PyErr_SetString(PyExc_RuntimeError, "Error fill value");
+        PyErr_SetString(PyExc_RuntimeError, "Error is parsing arguments in randn.");
         return NULL;
     }
 
     TensorBase *t = &((PyTensorBase *)self)->tb;
-    if (TensorBase_randn_(t, mu, sigma) < 0)
+    StatusCode status = TensorBase_randn_(t, mu, sigma);
+
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Unable to fill");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to randn.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return NULL;
     }
+
     Py_RETURN_NONE;
 }
 
 static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
 {
-    ShapeArray tb_shape;
-    long ndim = 0;
-
     if (kwds && PyDict_Size(kwds) > 0)
     {
         PyErr_SetString(PyExc_TypeError, "Tensor initialization does not accept keyword arguments.");
         return -1;
     }
 
-    ndim = args_to_shape(args, tb_shape);
+    ShapeArray tb_shape;
+    long ndim = args_to_shape(args, tb_shape);
     if (ndim < 0)
     {
         return -1;
     }
 
     // Initialize the tensor using TensorBase_init
-    int init_status = TensorBase_init(&self->tb, tb_shape, ndim);
-    if (init_status == -1)
+    StatusCode status = TensorBase_init(&self->tb, tb_shape, ndim);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "ndim is out of range.");
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to init method.");
         return -1;
-    }
-    else if (init_status == -2)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Memory Error with malloc.");
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return -1;
-    }
-    else if (init_status == -3)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Negative dim.");
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return -1;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
         return -1;
     }
 
@@ -1047,15 +1154,18 @@ static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args)
 
     ShapeArray shape;
     long ndim = arg_to_shape(args, shape);
-    if (ndim == -1)
+    if (ndim < 0)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
 
-    if (TensorBase_unbroadcast(in, shape, ndim, out) < 0)
+    StatusCode status = TensorBase_unbroadcast(in, shape, ndim, out);
+    switch (status)
     {
-        PyErr_SetString(PyExc_RuntimeError, "error in unbroadcasting!");
+    case OK:
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error in unbroadcast.");
         return NULL;
     }
 
@@ -1089,6 +1199,6 @@ static PyObject *PyTensorBase_richcompare(PyObject *self, PyObject *other, int o
         PyErr_SetString(PyExc_NotImplementedError, "Unsupported Operation");
         return NULL;
     }
-    
+
     return PyTensorBase_nb_binary_operation(self, other, binop);
 }

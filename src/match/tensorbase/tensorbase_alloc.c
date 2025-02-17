@@ -6,11 +6,17 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
+StatusCode TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 {
+    
     if (ndim > MAX_RANK || ndim < 0)
     {
-        return -1;
+        return NDIM_OUT_OF_BOUNDS;
+    }
+
+    if (td == NULL)
+    {
+        return NULL_INPUT_ERR;
     }
 
     // Initialize Tensorbase instance variables.
@@ -30,7 +36,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         if (dim < 0)
         {
             // All dimensions must be >= 0 (-1 indicates no-dimension).
-            return -3;
+            return INVALID_DIMENSION_SIZE;
         }
         td->numel *= dim;
         td->shape[i] = dim;
@@ -61,7 +67,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         if (td->data == NULL)
         {
             // Memory error.
-            return -2;
+            return MALLOC_ERR;
         }
     }
     else
@@ -71,7 +77,7 @@ int TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         td->data = NULL;
     }
 
-    return 0;
+    return OK;
 }
 
 void TensorBase_dealloc(TensorBase *td)

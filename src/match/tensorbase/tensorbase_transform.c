@@ -35,19 +35,20 @@ static randn_pair randn(scalar mu, scalar sigma)
     return result;
 }
 
-int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
+StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim, TensorBase *out)
 {
     if (in == NULL || out == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
+    }
+
+    if (in->ndim != ndim)
+    {
+        return PERMUTATION_INCORRECT_NDIM;
     }
 
     if (TensorBase_is_singleton(in))
     {
-        if (permutation[0] >= 0)
-        {
-            return -1;
-        }
         return TensorBase_create_empty_like(in, out);
     }
 
@@ -58,17 +59,13 @@ int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
     long dim = 0;
     for (; dim < in->ndim; dim++)
     {
-        if (permutation[dim] < 0)
+        if (permutation[dim] < 0 || permutation[dim] >= in->ndim)
         {
-            return -1;
-        }
-        if (permutation[dim] >= in->ndim)
-        {
-            return -1;
+            return INVALID_DIMENSION;
         }
         if (seen_dimensions[permutation[dim]] != 0)
         {
-            return -1; // Duplicate
+            return PERMUTATION_DUPLICATE_DIM; // Duplicate
         }
         seen_dimensions[permutation[dim]] = 1;
         permuted_shape[dim] = in->shape[permutation[dim]];
@@ -97,34 +94,32 @@ int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
         out->data[out_data_index] = in->data[in_data_index];
     }
 
-    return 0;
+    return OK;
 }
 
-int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
+StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
 {
     // Does not do validation of shape array
     // assumes ndim is the rank of shape
     if (in == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
 
     if (ndim > MAX_RANK)
     {
-        return -4;
+        return NDIM_OUT_OF_BOUNDS;
     }
 
     long numel_for_stride = 1;
     long numel = 1;
-    printf("%ld ", ndim);
     for (int i = 0; i < ndim; i++)
     {
         long dim = shape[i];
-        printf("%ld ", dim);
         if (dim < 0)
         {
             // All dimensions must be >= 0 (-1 indicates no-dimension).
-            return -2;
+            return INVALID_DIMENSION;
         }
         numel *= dim;
         if (dim > 0)
@@ -135,7 +130,7 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
 
     if (numel != in->numel)
     {
-        return -3;
+        return RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH;
     }
 
     // Calculate if the input tensor is singleton before changing internal metadata.
@@ -171,7 +166,7 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
             scalar *new_data_region = (scalar *)malloc(1 * sizeof(scalar));
             if (new_data_region == NULL)
             {
-                return -1;
+                return MALLOC_ERR;
             }
             // Copy the bits of the original scalar into the first position of the new_data_region.
             memcpy(new_data_region, &(in->data), sizeof(scalar));
@@ -197,20 +192,21 @@ int TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
         }
     }
 
-    return 0;
+    return OK;
 }
-int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
+
+StatusCode TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
 {
     // Does not do validation of shape array
     // assumes ndim is the rank of shape
     if (in == NULL || out == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
 
     if (ndim > MAX_RANK)
     {
-        return -4;
+        return NDIM_OUT_OF_BOUNDS;
     }
 
     // will not share data memory (data pointers point to the same data) or else we'd have to implement reference counting of the data element
@@ -226,17 +222,22 @@ int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long n
     return TensorBase_reshape_inplace(out, shape, ndim);
 }
 
-int TensorBase_fill_(TensorBase *in, scalar fill_value)
+StatusCode TensorBase_fill_(TensorBase *in, scalar fill_value)
 {
+    if (in == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
+
     if (TensorBase_is_singleton(in))
     {
         memcpy(&(in->data), &fill_value, sizeof(scalar));
-        return 0;
+        return OK;
     }
 
     if (in->data == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
 
     // Don't use memset for doubles/floats. Only for chars.
@@ -245,16 +246,21 @@ int TensorBase_fill_(TensorBase *in, scalar fill_value)
         in->data[i] = fill_value;
     }
 
-    return 0;
+    return OK;
 }
-int TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
+
+StatusCode TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
 {
+    if (in == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
     // Assumes tensor is already initialized. Just filling the data with random, normallu distributed values.
     if (TensorBase_is_singleton(in))
     {
         randn_pair pair = randn(mu, sigma);
         memcpy(&in->data, &pair.a, sizeof(scalar));
-        return 0;
+        return OK;
     }
 
     scalar *data = in->data;
@@ -268,14 +274,14 @@ int TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
         }
     }
 
-    return 0;
+    return OK;
 }
 
-int TensorBase_item(TensorBase *t, scalar *item)
+StatusCode TensorBase_item(TensorBase *t, scalar *item)
 {
     if (t->numel != 1)
     {
-        return -1;
+        return ITEM_NUMEL_NOT_ONE;
     }
 
     if (TensorBase_is_singleton(t))
@@ -287,5 +293,5 @@ int TensorBase_item(TensorBase *t, scalar *item)
         *item = *(t->data);
     }
 
-    return 0;
+    return OK;
 }

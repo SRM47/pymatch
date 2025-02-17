@@ -6,11 +6,11 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int broadcast_ndim)
+static StatusCode TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, int broadcast_ndim)
 {
     if (in->ndim > broadcast_ndim)
     {
-        return -1;
+        return INCOMPATABLE_BROASCAST_SHAPES;
     }
 
     // Broadcast dimensions
@@ -23,18 +23,18 @@ static int TensorBase_can_broadcast(TensorBase *in, ShapeArray broadcast_shape, 
         {
             continue;
         }
-        return -1;
+        return INCOMPATABLE_BROASCAST_SHAPES;
     }
 
-    return 0;
+    return OK;
 }
 // TODO: Implement
-int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out)
+StatusCode TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out)
 {
-    return -2;
+    return NOT_IMPLEMENTED;
 }
 
-int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBase *out)
+StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBase *out)
 {
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
 
@@ -88,5 +88,5 @@ int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBa
             memcpy(out, &temp, sizeof(TensorBase));
         }
     }
-    return 0;
+    return OK;
 }

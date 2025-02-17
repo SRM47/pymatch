@@ -6,12 +6,12 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, AggScalarOperation agg)
+StatusCode TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, AggScalarOperation agg)
 {
     // Input validation
     if (in == NULL || out == NULL)
     {
-        return -1;
+        return NULL_INPUT_ERR;
     }
     long agg_ndim;
     IndexArray agg_dims;
@@ -24,11 +24,11 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
         }
         if (dim[agg_ndim] >= in->ndim)
         {
-            return -1;
+            return INVALID_DIMENSION;
         }
         if (agg_dims[dim[agg_ndim]] != 0)
         {
-            return -1; // Duplicate
+            return DUPLICATE_AGGREGATION_DIM; // Duplicate
         }
         agg_dims[dim[agg_ndim]] = 1;
     }
@@ -37,7 +37,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     if (TensorBase_is_singleton(in))
     {
         memcpy(out, in, sizeof(TensorBase));
-        return 0;
+        return OK;
     }
 
     // If no dims were provided, then aggregate over the entire array
@@ -102,7 +102,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
 
     if (keepdim)
     {
-        return 0;
+        return OK;
     }
 
     ShapeArray new_shape_after_keepdim;
@@ -123,5 +123,5 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
 
     RETURN_IF_ERROR(TensorBase_reshape_inplace(out, new_shape_after_keepdim, ndim_after_keepdim));
 
-    return 0;
+    return OK;
 }
