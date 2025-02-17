@@ -45,7 +45,6 @@ int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBa
 
     if (!TensorBase_same_shape(in->shape, shape))
     {
-        int status;
         long dimension_diff = labs(in->ndim - ndim);
 
         if (dimension_diff != 0)
@@ -82,7 +81,7 @@ int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBa
             }
 
             TensorBase temp;
-            RETURN_IF_ERORR(TensorBase_aggregate(out, originally_ones, 1, &temp, SCALAR_AGG_SUM));
+            RETURN_IF_ERROR(TensorBase_aggregate(out, originally_ones, 1, &temp, SCALAR_AGG_SUM));
             // Out has a pointer to data that is stale...we dont need it. The new pointer is the summed pointer in temp.
             // dealloc out and copy the data into out from temp.
             TensorBase_dealloc(out);
