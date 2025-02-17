@@ -20,7 +20,7 @@ class BaseUnitTest(unittest.TestCase):
         match_tensor: tensor.Tensor,
         pytorch_tensor: torch.Tensor,
         check_grad: bool = False,
-        debug: bool = False,
+        debug: bool = True,
     ) -> bool:
         """Compares the custom tensor implementation to Pytorch's tensor implementation.
 
@@ -40,9 +40,9 @@ class BaseUnitTest(unittest.TestCase):
             m.squeeze_()
 
         is_close = torch.allclose(m, t, rtol=1e-02, atol=1e-05)
-        if debug:
-            logger.info("Match: ", m)
-            logger.info("Torch: ", t)
+        if debug and not is_close:
+            print("match", m)
+            print("tensor", t)
         return is_close
 
     def to_tensor(
@@ -58,22 +58,24 @@ class BaseUnitTest(unittest.TestCase):
         Returns:
             torch.Tensor: The equivalent PyTorch implementation of the provided match Match tensor.
         """
-        match_tensor_data = match_tensor.grad if get_grad else match_tensor.data
+        match_tensorbase = match_tensor.grad if get_grad else match_tensor.data
         torch_tensor = None
 
         if use_numpy:
             torch_tensor = torch.from_numpy(
-                np.array(match_tensor_data._numpy_data)
+                np.array(match_tensorbase._numpy_data)
             ).float()
         else:
-            if match_tensor_data._data is None:
-                torch_tensor = torch.tensor(data=match_tensor_data.item()).float()
+            if match_tensorbase.ndim == 0:
+                torch_tensor = torch.tensor(match_tensorbase.item()).float()
             else:
-                torch_tensor = torch.zeros(match_tensor_data.shape).float()
-                for index in itertools.product(
-                    *[range(dim) for dim in match_tensor_data.shape]
-                ):
-                    torch_tensor[index] = match_tensor_data[index].item()
+                torch_tensor = (
+                    torch.Tensor(
+                        match_tensorbase._raw_data
+                    )  # Gets the raw 1D array storing the data of the TensorBase object.
+                    .float()
+                    .reshape(tuple(match_tensorbase.size))
+                )
 
         torch_tensor.requires_grad = requires_grad
         return torch_tensor

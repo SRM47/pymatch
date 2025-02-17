@@ -52,7 +52,7 @@ static inline int TensorBase_is_singleton(TensorBase *t)
     return t->ndim == 0;
 }
 
-static inline int TensorBase_compare_shape(ShapeArray a_shape, ShapeArray b_shape)
+static inline int TensorBase_same_shape(ShapeArray a_shape, ShapeArray b_shape)
 {
     return memcmp(a_shape, b_shape, MAX_RANK * sizeof(long)) == 0;
 }
@@ -346,6 +346,24 @@ static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, 
     case SCALAR_POWER:
         *result = pow(a, b);
         break;
+    case SCALAR_EQ:
+        *result = (a == b);
+        break;
+    case SCALAR_LT:
+        *result = (a < b);
+        break;
+    case SCALAR_GT:
+        *result = (a > b);
+        break;
+    case SCALAR_NEQ:
+        *result = (a != b);
+        break;
+    case SCALAR_LEQ:
+        *result = (a <= b);
+        break;
+    case SCALAR_GEQ:
+        *result = (a >= b);
+        break;
     default:
         break;
     }
@@ -424,7 +442,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
     }
 
     // Check if the two tensorbase structures don't have the same dimensions
-    if (TensorBase_compare_shape(a->shape, b->shape))
+    if (TensorBase_same_shape(a->shape, b->shape))
     {
         // They have the same shape.
         if (TensorBase_create_empty_like(a, out) == -1)
@@ -880,6 +898,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     // Input validation
     if (in == NULL || out == NULL)
     {
+        printf("errororororor345");
         return -1;
     }
     long agg_ndim;
@@ -893,10 +912,12 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
         }
         if (dim[agg_ndim] >= in->ndim)
         {
+            printf("errororororor here");
             return -1;
         }
         if (agg_dims[dim[agg_ndim]] != 0)
         {
+            printf("errororororor heree");
             return -1; // Duplicate
         }
         agg_dims[dim[agg_ndim]] = 1;
@@ -924,27 +945,33 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     // Initialize the out tensor with the new shape
     if (TensorBase_init(out, new_shape, in->ndim) < 0)
     {
+        printf("errorororororhhh");
         return -1;
     }
 
     scalar num_agg_elem = in->numel / out->numel;
 
     // Loop through each element in the input tensors data, and map what position in the aggregated tensors data.
-    scalar temp_out_data[out->numel]; // init problemf or max min
+    scalar temp_out_data[out->numel];
+    memset(temp_out_data, 0, sizeof(scalar) * out->numel);
     for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
     {
         // For each element in the data index, calculate the corresponding
         // element in each of the input tensors.
         long out_data_index = 0;
 
-        for (long out_dim = out->ndim - 1, temp = in_data_index; out_dim >= 0; out_dim--)
+        for (long d = out->ndim - 1, temp = in_data_index; d >= 0; d--)
         {
-            long out_coordinate_at_curr_dim = temp % out->shape[out_dim];
-            temp /= in->shape[out_dim];
+            // Get the coordinate in the original tensor (in)
+            long in_coordinate_at_curr_dim = temp % in->shape[d];
+            temp /= in->shape[d];
 
-            if (out->shape[out_dim] > 1)
+            // If the current dimension is a summed dimension, then convert it to 0 in the out tensor
+            // Add to the index into out data array.
+            if (agg_dims[d] == 0)
             {
-                out_data_index += out_coordinate_at_curr_dim * out->strides[out_dim];
+                // If the current dimension is a sumemd dimension, the converted index would be 0 and 0*strides[d] = 0. So we only multiply is if not sumemd dimension.
+                out_data_index += in_coordinate_at_curr_dim * out->strides[d];
             }
         }
 
@@ -990,6 +1017,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
 
     if (TensorBase_reshape_inplace(out, new_shape_after_keepdim, ndim_after_keepdim) < 0)
     {
+        printf("errororororor876");
         return -1;
     }
 
@@ -1061,8 +1089,6 @@ int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
         {
             out_data_index += out->strides[out_dim] * in_coord[permutation[out_dim]];
         }
-
-        printf("%ld, %ld\n", in_data_index, out_data_index);
 
         out->data[out_data_index] = in->data[in_data_index];
     }
@@ -1260,5 +1286,96 @@ int TensorBase_item(TensorBase *t, scalar *item)
         *item = *(t->data);
     }
 
+    return 0;
+}
+
+void print_long_list(const long *list, size_t size)
+{
+    printf("[");
+    for (long i = 0; i < size; i++)
+    {
+        printf("%ld, ", list[i]);
+    }
+    printf("]\n");
+}
+int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBase *out)
+{
+    printf("START\n");
+    print_long_list(in->shape, in->ndim);
+    printf(" unbroadcast into ");
+    print_long_list(shape, ndim);
+    if (TensorBase_create_empty_like(in, out) < 0)
+    {
+        return -1;
+    }
+    if (!TensorBase_is_singleton(in))
+    {
+        memcpy(out->data, in->data, sizeof(scalar) * out->numel);
+    }
+
+    if (!TensorBase_same_shape(in->shape, shape))
+    {
+        int status;
+        long dimension_diff = labs(in->ndim - ndim);
+        printf("first one");
+
+        if (dimension_diff != 0)
+        {
+            IndexArray summation_dims;
+            long i = 0;
+
+            for (; i < dimension_diff; i++)
+            {
+                summation_dims[i] = i;
+            }
+            for (; i < MAX_RANK; i++)
+            {
+                summation_dims[i] = -1;
+            }
+            status = TensorBase_aggregate(in, summation_dims, 0, out, SCALAR_AGG_SUM);
+            if (status < 0)
+            {
+                printf("errororororor87686 %d", status);
+                return status;
+            }
+        }
+
+        IndexArray originally_ones;
+        long d = 0;
+        for (long i = 0; i < ndim; i++)
+        {
+            if (shape[i] == 1)
+            {
+                originally_ones[d] = i;
+                d++;
+                printf("axis: %ld, ", d);
+            }
+        }
+        if (d > 0)
+        {
+            printf("d!=0");
+            for (; d < MAX_RANK; d++)
+            {
+                originally_ones[d] = -1;
+            }
+
+            TensorBase temp;
+            status = TensorBase_aggregate(out, originally_ones, 1, &temp, SCALAR_AGG_SUM);
+            if (status < 0)
+            {
+                printf("errororororor %d", status);
+                return status;
+            }
+            // Out has a pointer to data that is stale...we dont need it. The new pointer is the summed pointer in temp.
+            // dealloc out and copy the data into out from temp.
+            TensorBase_dealloc(out);
+            memcpy(out, &temp, sizeof(TensorBase));
+        }
+    }
+    else
+    {
+        printf("shape no different");
+    }
+    printf("END\n\n");
     return 0;
 }

@@ -1,6 +1,5 @@
 import unittest
 import torch
-from match import tensordata, tensor, randn, use_numpy
 import itertools
 import numpy as np
 import random

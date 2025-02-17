@@ -38,9 +38,16 @@ static PyObject *PyTensorBase_nb_subtract(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b);
+
+static PyObject *PyTensorBase_nb_eq(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_lt(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_gt(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_neq(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_leq(PyObject *a, PyObject *b);
+static PyObject *PyTensorBase_nb_geq(PyObject *a, PyObject *b);
+
 static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c);
 static PyObject *PyTensorBase_nb_negative(PyObject *a);
-// static PyObject *PyTensorBase_nb_positive(PyObject *a);
 static PyObject *PyTensorBase_nb_absolute(PyObject *a);
 
 // https://docs.python.org/3/c-api/typeobj.html#number-object-structures
@@ -157,7 +164,7 @@ static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssiz
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 
-static PyObject *PyTensorBase_broadcast_to(PyObject *self, PyObject *args);
+static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args);
 static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args);
 static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args);
 
@@ -204,11 +211,12 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"max", (PyCFunctionFast)PyTensorBase_max, METH_FASTCALL, "Compute the maximum value."},
     {"min", (PyCFunctionFast)PyTensorBase_min, METH_FASTCALL, "Compute the minimum value."},
-    // (PyCFunctionFast)
+
     {"mean", (PyCFunctionFast)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
     {"sum", (PyCFunctionFast)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
 
-    {"broadcast_to", (PyCFunction)PyTensorBase_broadcast_to, METH_O, "Broadcast the array to a new shape."},
+    {"unbroadcast", (PyCFunction)PyTensorBase_unbroadcast, METH_O, "Unbroadcast TensorBase."},
+
     {"permute", (PyCFunction)PyTensorBase_permute, METH_O, "Permute the dimensions of the array."},
     {"transpose", (PyCFunction)PyTensorBase_transpose, METH_O, "Transpose the array."},
     {NULL} /* Sentinel */
@@ -827,7 +835,6 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
     return (PyObject *)result;
 }
 
-
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_max is not implemented");
@@ -842,7 +849,7 @@ static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssiz
 
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-   return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_MEAN);
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_MEAN);
 }
 
 static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
@@ -870,14 +877,14 @@ static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_RuntimeError, "error here");
         return NULL;
     }
-    
-    if (TensorBase_permute(in, permutation, out) < 0) {
+
+    if (TensorBase_permute(in, permutation, out) < 0)
+    {
         PyErr_SetString(PyExc_RuntimeError, "error in permutation");
         return NULL;
     }
 
     return (PyObject *)result;
-    
 }
 
 static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args)
@@ -1029,4 +1036,29 @@ static PyObject *PyTensorBase_str(PyTensorBase *obj)
 
     TensorBase_to_string(&obj->tb);
     return Py_BuildValue("s", str_buffer);
+}
+
+static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args)
+{
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+
+    TensorBase *in = &((PyTensorBase *)self)->tb;
+    TensorBase *out = &((PyTensorBase *)result)->tb;
+
+    ShapeArray shape;
+    long ndim = arg_to_shape(args, shape);
+    if (ndim == -1)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "error here");
+        return NULL;
+    }
+
+    if (TensorBase_unbroadcast(in,shape, ndim, out) < 0)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "error in unbroadcasting!");
+        return NULL;
+    }
+
+    return (PyObject *)result;
+
 }

@@ -11,6 +11,8 @@ if use_numpy:
 else:
     from .tensordata import TensorData
 
+from match.tensorbase import TensorBase
+
 
 def cat(tensors: list[Tensor], dim=0) -> Tensor:
     """_summary_
@@ -34,20 +36,7 @@ def cat(tensors: list[Tensor], dim=0) -> Tensor:
 def randn(*shape, generator=lambda: gauss(0, 1)) -> Tensor:
     if isinstance(shape[0], tuple):
         shape = shape[0]
-
-    if use_numpy:
-        rng = np.random.default_rng(seed=47)
-        data = TensorData(
-            *shape,
-            numpy_data=rng.random(shape),
-        )
-        return Tensor(data=data)
-
-    if not shape:
-        return Tensor(TensorData(value=generator()))
-
-    rand_tensordata = TensorData(0)
-    data = [TensorData(value=generator()) for _ in range(prod(shape))]
-    rand_tensordata._data = data
-    rand_tensordata.reshape_(shape)
-    return Tensor(rand_tensordata)
+    
+    t = TensorBase(shape)
+    t.randn_(0, 1)
+    return Tensor(data=t)

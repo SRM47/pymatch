@@ -29,7 +29,13 @@ typedef enum
     SCALAR_MULT,
     SCALAR_FLOORDIV,
     SCALAR_TRUEDIV,
-    SCALAR_POWER
+    SCALAR_POWER,
+    SCALAR_EQ,
+    SCALAR_LT,
+    SCALAR_GT,
+    SCALAR_NEQ,
+    SCALAR_LEQ,
+    SCALAR_GEQ
 } BinaryScalarOperation;
 
 // Enum for unary operations.
@@ -84,6 +90,7 @@ EXPORT void TensorBase_to_string(TensorBase *td);
  *********************************************************/
 
 EXPORT int TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out);
+EXPORT int TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBase *out);
 
 /*********************************************************
  *                    Linear Algebra                     *

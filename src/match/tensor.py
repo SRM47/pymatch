@@ -5,61 +5,43 @@ from math import prod
 from random import gauss
 from typing import Callable, List, Set
 import numpy as np
-
+from match.tensorbase import TensorBase
 from icecream import ic
 
-use_numpy = True  # False to use the python implementation of TensorData.
+use_numpy = False  # False to use the python implementation of TensorBase.
 
-if use_numpy:
-    from .tensordata_numpy import TensorData
-else:
-    from .tensordata import TensorData
+# if use_numpy:
+#     from .TensorBase_numpy import TensorBase
+# else:
+#     from .TensorBase import TensorBase
 
 LOG = True
 
 
 class Tensor:
-    def __init__(self, data: TensorData, children: tuple = ()) -> None:
+    def __init__(self, data: TensorBase, children: tuple = ()) -> None:
         """
         Initialize a Tensor object with given data and optional children, supporting autodifferentiation.
 
         Args:
-            data (TensorData): The data for the tensor, typically a NumPy array or similar structure.
+            data (TensorBase): The data for the tensor, typically a NumPy array or similar structure.
             children (tuple, optional): A tuple of child tensors that this tensor depends on in the
                                         computational graph. Defaults to an empty tuple.
         """
-        self.data: TensorData = data
-        self.grad: TensorData = TensorData(*self.shape)
+        self.data: TensorBase = data
+        self.grad: TensorBase = TensorBase(data.size)
+        self.grad.fill_(0)
 
         # Backpropagation compute graph
         self._gradient: Callable = lambda: None
         self._children: Set[Tensor] = set(children)
 
     def __repr__(self) -> str:
+        print(self.data)
         return self.data.__repr__()
 
     def __str__(self) -> str:
         return self.__repr__()
-
-    # TODO: Remove this
-    def randn(*shape, generator=lambda: gauss(0, 1)) -> Tensor:
-        if isinstance(shape[0], tuple):
-            shape = shape[0]
-
-        if use_numpy:
-            data = TensorData(
-                *shape,
-                numpy_data=np.random.default_rng().normal(0, 1, size=shape),
-            )
-            return Tensor(data=data)
-
-        if not shape:
-            return Tensor(TensorData(value=generator()))
-
-        rand_tensordata = TensorData(0)
-        rand_tensordata._data = [TensorData(value=generator()) for _ in range(prod(shape))]
-        rand_tensordata.reshape_(shape)
-        return Tensor(rand_tensordata)
 
     def backward(self) -> None:
         """Compute all gradients using backpropagation.
@@ -86,7 +68,7 @@ class Tensor:
         topological_sort(self)
 
         # Initialize all gradients with ones
-        self.grad.ones_()
+        self.grad.fill_(1)
 
         # Update gradients from output to input (backwards)
         info("Computing gradients using backpropagation.")
@@ -107,19 +89,19 @@ class Tensor:
     
     def dim(self) -> int:
         """Return the dimension of the tensor."""
-        return len(self.data.shape)
+        return self.data.ndim
 
     @property
     def numel(self) -> int:
         """Return the number of elements in a tensor."""
-        return self.data.numel()
+        return self.data.numel
 
     @property
-    def shape(self) -> int:
+    def shape(self) -> tuple:
         """Return the shape of the tensor."""
-        return self.data.shape
+        return self.data.size
 
-    def sum(self, dim: tuple | int = None, keepdims: bool = False) -> Tensor:
+    def sum(self, dim: tuple | int = (), keepdims: bool = False) -> Tensor:
         """
         Return the sum of all values across specified dimensions.
 
@@ -138,16 +120,18 @@ class Tensor:
             function to the resulting tensor, which propagates the gradient to the
             original tensor.
         """
-        result = Tensor(self.data.sum(dims=dim, keepdims=keepdims), children=(self,))
+        if isinstance(dim, int):
+            dim = (dim,)
+        result = Tensor(self.data.sum(dim, keepdims), children=(self,))
 
         def _gradient() -> None:
             info(f"Gradient of summation. Shape: {self.shape}")
-            self.grad += 1 * result.grad
+            self.grad += result.grad # 1 * result.grad
 
         result._gradient = _gradient
         return result
 
-    def mean(self, dim: tuple | int = None, keepdims: bool = False) -> Tensor:
+    def mean(self, dim: tuple | int = (), keepdims: bool = False) -> Tensor:
         """
         Return the mean of all values across specified dimensions.
 
@@ -166,7 +150,9 @@ class Tensor:
             function to the resulting tensor, which propagates the gradient to the
             original tensor.
         """
-        result = Tensor(self.data.mean(dims=dim, keepdims=keepdims), children=(self,))
+        if isinstance(dim, int):
+            dim = (dim,)
+        result = Tensor(self.data.mean(dim, keepdims), children=(self,))
 
         def _gradient() -> None:
             info(f"Gradient of mean. Shape: {self.shape}")
@@ -209,10 +195,10 @@ class Tensor:
 
         def _gradient() -> None:
             info(f"Gradient of addition (LHS). Shape: {self.shape}")
-            self.grad += result.grad.unbroadcast(*self.shape)
+            self.grad += result.grad.unbroadcast(self.shape)
             if isinstance(rhs, Tensor):
-                info(f"Gradient of addition (RHS). Shape: {self.shape}")
-                rhs.grad += result.grad.unbroadcast(*rhs.shape)
+                info(f"Gradient of addition (RHS). Shape: {rhs.shape}")
+                rhs.grad += result.grad.unbroadcast(rhs.shape)
 
         result._gradient = _gradient
         return result
@@ -227,10 +213,10 @@ class Tensor:
 
         def _gradient() -> None:
             info(f"Gradient of multiplication (LHS). Shape: {self.shape}")
-            self.grad += (rhs_vals * result.grad).unbroadcast(*self.shape)
+            self.grad += (rhs_vals * result.grad).unbroadcast(self.shape)
             if isinstance(rhs, Tensor):
-                info(f"Gradient of multiplication (RHS). Shape: {self.shape}")
-                rhs.grad += (self.data * result.grad).unbroadcast(*rhs.shape)
+                info(f"Gradient of multiplication (RHS). Shape: {rhs.shape}")
+                rhs.grad += (self.data * result.grad).unbroadcast(rhs.shape)
 
         result._gradient = _gradient
         return result
@@ -265,11 +251,11 @@ class Tensor:
 
             def _gradient() -> None:
                 info(f"Gradient of Tensor multiplication (LHS). Shape: {self.shape}")
-                g = result.grad @ rhs.data.permute(*rhs_permutation)
-                self.grad += g.unbroadcast(*self.shape)
-                info(f"Gradient of Tensor multiplication (RHS). Shape: {self.shape}")
-                g = self.data.permute(*self_permutation) @ result.grad
-                rhs.grad += g.unbroadcast(*rhs.shape)
+                g = result.grad @ rhs.data.permute(rhs_permutation)
+                self.grad += g.unbroadcast(self.shape)
+                info(f"Gradient of Tensor multiplication (RHS). Shape: {rhs.shape}")
+                g = self.data.permute(self_permutation) @ result.grad
+                rhs.grad += g.unbroadcast(rhs.shape)
 
         elif lhs_dims == 1 and rhs_dims >= 2:
             rhs_permutation = tuple(range(rhs_dims - 2)) + (rhs_dims - 1, rhs_dims - 2)
@@ -278,14 +264,14 @@ class Tensor:
                 info(f"Gradient of Tensor multiplication (LHS). Shape: {self.shape}")
                 g = result.grad.reshape(
                     result.shape[:-1] + (1,) + result.shape[-1:]
-                ) @ rhs.data.permute(*rhs_permutation)
+                ) @ rhs.data.permute(rhs_permutation)
                 # The broadcast will take of the 1 in the second last position
-                self.grad += g.unbroadcast(*self.shape)
+                self.grad += g.unbroadcast(self.shape)
                 info(f"Gradient of Tensor multiplication (RHS). Shape: {self.shape}")
                 g = self.data.reshape((self.shape[0], 1)) @ result.grad.reshape(
                     result.shape[:-1] + (1,) + result.shape[-1:]
                 )
-                rhs.grad += g.unbroadcast(*rhs.shape)
+                rhs.grad += g.unbroadcast(rhs.shape)
 
         elif lhs_dims >= 2 and rhs_dims == 1:
             # If the RHS has dim 1, rhs is technically a column vector
@@ -297,15 +283,15 @@ class Tensor:
                 g = result.grad.reshape(result.shape + (1,)) @ rhs.data.reshape(
                     (1, rhs.shape[0])
                 )
-                self.grad += g.unbroadcast(*self.shape)
+                self.grad += g.unbroadcast(self.shape)
                 info(f"Gradient of Tensor multiplication (RHS). Shape: {self.shape}")
                 # Add a one to result grad dimension
-                g = self.data.permute(*self_permutation) @ result.grad.reshape(
+                g = self.data.permute(self_permutation) @ result.grad.reshape(
                     result.shape + (1,)
                 )
                 # Then remove the last "1" dimension it after multiplication
-                g.reshape_(g.shape[:-1])
-                rhs.grad += g.unbroadcast(*rhs.shape)
+                g.reshape_(g.size[:-1])
+                rhs.grad += g.unbroadcast(rhs.shape)
 
         result._gradient = _gradient
         return result
@@ -380,13 +366,13 @@ class Tensor:
         Returns:
             Tensor: A new tensor with the dimensions permuted according to the specified order.
         """
-        result: Tensor = Tensor(self.data.permute(*dims), children=(self,))
+        result: Tensor = Tensor(self.data.permute(dims), children=(self,))
 
         def _gradient() -> None:
             info(f"Gradient of permute. Shape: {self.shape}")
             # Permuting the result with the same parameter (reverse)
             new_dims = tuple(dims.index(i) for i in range(len(dims)))
-            self.grad += result.grad.permute(*new_dims)
+            self.grad += result.grad.permute(new_dims)
 
         result._gradient = _gradient
         return result
