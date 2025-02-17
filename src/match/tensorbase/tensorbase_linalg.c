@@ -53,10 +53,7 @@ static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, 
 
 int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
-    if (TensorBase_create_empty_like(a, out) == -1)
-    {
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
     if (TensorBase_is_singleton(a))
     {
         // Copy the bits of a->data into a_value.
@@ -80,10 +77,7 @@ int TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *
 
 int TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
-    if (TensorBase_create_empty_like(a, out) == -1)
-    {
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
     if (TensorBase_is_singleton(a))
     {
         // Copy the bits of a->data into a_value.
@@ -127,10 +121,7 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
     if (TensorBase_same_shape(a->shape, b->shape))
     {
         // They have the same shape.
-        if (TensorBase_create_empty_like(a, out) == -1)
-        {
-            return -1;
-        }
+        RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
         for (long i = 0; i < out->numel; i++)
         {
             apply_binop(binop, a->data[i], b->data[i], out->data + i);
@@ -141,16 +132,9 @@ int TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, Ten
         // They don't have the same shape must *attempt to* broadcast.
         ShapeArray broadcasted_tensor_shape;
         long broadcasted_tensor_ndim;
-        if (TensorBase_get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcasted_tensor_shape, &broadcasted_tensor_ndim) == -1)
-        {
-            // Incompatible broadcasting shapes.
-            return -1;
-        }
+        RETURN_IF_ERROR(TensorBase_get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcasted_tensor_shape, &broadcasted_tensor_ndim));
 
-        if (TensorBase_init(out, broadcasted_tensor_shape, broadcasted_tensor_ndim) == -1)
-        {
-            return -1;
-        }
+        RETURN_IF_ERROR(TensorBase_init(out, broadcasted_tensor_shape, broadcasted_tensor_ndim));
         // Loop through each element in the broadcasted tensor's data.
         for (long broadcasted_data_index = 0; broadcasted_data_index < out->numel; broadcasted_data_index++)
         {
@@ -256,10 +240,7 @@ int TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
 
 int TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop)
 {
-    if (TensorBase_create_empty_like(in, out) == -1)
-    {
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
     if (TensorBase_is_singleton(in))
     {
         scalar in_value;
@@ -372,10 +353,7 @@ int TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b
 
         long non_matrix_dims;
         // Broadcast the non-matrx dimensions.
-        if (TensorBase_get_broadcast_shape(a->shape, batch_dims_a, b->shape, batch_dims_b, shape, &non_matrix_dims) == -1)
-        {
-            return -2;
-        }
+        RETURN_IF_ERROR(TensorBase_get_broadcast_shape(a->shape, batch_dims_a, b->shape, batch_dims_b, shape, &non_matrix_dims));
 
         ndim = non_matrix_dims;
         if (matrix_dims_a == 1)
@@ -467,11 +445,7 @@ int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
         return -1;
     }
 
-    int status = TensorBase_initialize_for_matrix_multiplication(a, b, out);
-    if (status < 0)
-    {
-        return status;
-    }
+    RETURN_IF_ERROR(TensorBase_initialize_for_matrix_multiplication(a, b, out));
 
     if (a->ndim == 1 && b->ndim == 1)
     {
@@ -561,11 +535,7 @@ int TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
                 }
             }
 
-            status = matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m);
-            if (status < 0)
-            {
-                return status;
-            }
+            RETURN_IF_ERROR(matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m));
         }
         return 0;
     }

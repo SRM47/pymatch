@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <math.h>
 #include <string.h>
@@ -6,6 +6,8 @@
 #include <stdio.h>
 
 #include "tensorbase.h"
+
+#define RETURN_IF_ERROR(x) ({int _status = x; if (_status < 0) { return _status; }})
 
 static inline long max_long(long a, long b)
 {
@@ -93,5 +95,3 @@ static int TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, Shape
 
     return 0;
 }
-
-

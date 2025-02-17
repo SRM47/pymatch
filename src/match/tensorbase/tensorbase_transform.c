@@ -74,10 +74,7 @@ int TensorBase_permute(TensorBase *in, IndexArray permutation, TensorBase *out)
         permuted_shape[dim] = in->shape[permutation[dim]];
     }
 
-    if (TensorBase_init(out, permuted_shape, in->ndim) < 0)
-    {
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_init(out, permuted_shape, in->ndim));
 
     for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
     {
@@ -218,10 +215,7 @@ int TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long n
 
     // will not share data memory (data pointers point to the same data) or else we'd have to implement reference counting of the data element
     // well call this a limitation of the system
-    if (TensorBase_create_empty_like(in, out) < 0)
-    {
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
 
     // must also copy the data over if not a single object.
     if (!TensorBase_is_singleton(in))

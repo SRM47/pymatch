@@ -11,7 +11,6 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     // Input validation
     if (in == NULL || out == NULL)
     {
-        printf("errororororor345");
         return -1;
     }
     long agg_ndim;
@@ -25,12 +24,10 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
         }
         if (dim[agg_ndim] >= in->ndim)
         {
-            printf("errororororor here");
             return -1;
         }
         if (agg_dims[dim[agg_ndim]] != 0)
         {
-            printf("errororororor heree");
             return -1; // Duplicate
         }
         agg_dims[dim[agg_ndim]] = 1;
@@ -56,11 +53,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
     }
 
     // Initialize the out tensor with the new shape
-    if (TensorBase_init(out, new_shape, in->ndim) < 0)
-    {
-        printf("errorororororhhh");
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_init(out, new_shape, in->ndim));
 
     scalar num_agg_elem = in->numel / out->numel;
 
@@ -128,11 +121,7 @@ int TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase
         new_shape_after_keepdim[d] = -1;
     }
 
-    if (TensorBase_reshape_inplace(out, new_shape_after_keepdim, ndim_after_keepdim) < 0)
-    {
-        printf("errororororor876");
-        return -1;
-    }
+    RETURN_IF_ERROR(TensorBase_reshape_inplace(out, new_shape_after_keepdim, ndim_after_keepdim));
 
     return 0;
 }
