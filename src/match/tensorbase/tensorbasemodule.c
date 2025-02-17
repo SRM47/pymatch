@@ -39,14 +39,8 @@ static PyObject *PyTensorBase_nb_multiply(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_floor_divide(PyObject *a, PyObject *b);
 static PyObject *PyTensorBase_nb_true_divide(PyObject *a, PyObject *b);
 
-static PyObject *PyTensorBase_nb_eq(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_nb_lt(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_nb_gt(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_nb_neq(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_nb_leq(PyObject *a, PyObject *b);
-static PyObject *PyTensorBase_nb_geq(PyObject *a, PyObject *b);
-
 static PyObject *PyTensorBase_nb_power(PyObject *a, PyObject *b, PyObject *c);
+
 static PyObject *PyTensorBase_nb_negative(PyObject *a);
 static PyObject *PyTensorBase_nb_absolute(PyObject *a);
 
@@ -88,6 +82,12 @@ static PyNumberMethods PyTensorBase_as_number = {
     // .nb_inplace_or = 0,
     // .nb_index = 0,
 };
+
+/*********************************************************
+ *                   Rich Comparison                     *
+ *********************************************************/
+
+static PyObject *PyTensorBase_richcompare(PyObject *self, PyObject *other, int op);
 
 /*********************************************************
  *                  Sequence Protocol                    *
@@ -303,7 +303,7 @@ static PyTypeObject PyTensorBaseType = {
 
     /* Assigned meaning in release 2.1 */
     /* rich comparisons */
-    // .tp_richcompare = 0,
+    .tp_richcompare = (richcmpfunc)PyTensorBase_richcompare,
 
     /* weak reference enabler */
     // .tp_weaklistoffset = 0,
@@ -1053,12 +1053,42 @@ static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    if (TensorBase_unbroadcast(in,shape, ndim, out) < 0)
+    if (TensorBase_unbroadcast(in, shape, ndim, out) < 0)
     {
         PyErr_SetString(PyExc_RuntimeError, "error in unbroadcasting!");
         return NULL;
     }
 
     return (PyObject *)result;
+}
 
+static PyObject *PyTensorBase_richcompare(PyObject *self, PyObject *other, int op)
+{
+    BinaryScalarOperation binop;
+    switch (op)
+    {
+    case Py_LT:
+        binop = SCALAR_LT;
+        break;
+    case Py_LE:
+        binop = SCALAR_LEQ;
+        break;
+    case Py_GT:
+        binop = SCALAR_GT;
+        break;
+    case Py_GE:
+        binop = SCALAR_GEQ;
+        break;
+    case Py_EQ:
+        binop = SCALAR_EQ;
+        break;
+    case Py_NE:
+        binop = SCALAR_NEQ;
+        break;
+    default:
+        PyErr_SetString(PyExc_NotImplementedError, "Unsupported Operation");
+        return NULL;
+    }
+    
+    return PyTensorBase_nb_binary_operation(self, other, binop);
 }
