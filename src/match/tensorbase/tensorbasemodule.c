@@ -115,11 +115,20 @@ static PySequenceMethods PyTensorBase_sequence_methods = {
  *                   Mapping Methods                     *
  *********************************************************/
 
+// https://docs.python.org/3/c-api/object.html#c.PyObject_Size
+static Py_ssize_t PyTensorBase_length(PyObject *o);
+
+// https://docs.python.org/3/c-api/object.html#c.PyObject_GetItem
+static PyObject *PyTensorBase_getitem(PyObject *o, PyObject *key);
+
+// https://docs.python.org/3/c-api/object.html#c.PyObject_SetItem
+static int PyTensorBase_setitem(PyObject *o, PyObject *key, PyObject *v);
+
 // https://docs.python.org/3/c-api/typeobj.html#mapping-object-structures
 static PyMappingMethods PyTensorBase_mapping_methods = {
-    .mp_length = 0,
-    .mp_subscript = 0,
-    .mp_ass_subscript = 0,
+    .mp_length = (lenfunc)PyTensorBase_length,               // __len__
+    .mp_subscript = (binaryfunc)PyTensorBase_getitem,        // __getitem__
+    .mp_ass_subscript = (objobjargproc)PyTensorBase_setitem, // __setitem__
 };
 
 /*********************************************************
@@ -1201,4 +1210,152 @@ static PyObject *PyTensorBase_richcompare(PyObject *self, PyObject *other, int o
     }
 
     return PyTensorBase_nb_binary_operation(self, other, binop);
+}
+
+long parse_key_to_subscripts(PyObject *key, SubscriptArray subscripts)
+{
+    // If key is not a tuple, convert it to a single-element tuple
+    PyObject *tuple_key = PyTuple_Check(key) ? key : PyTuple_Pack(1, key);
+    Py_ssize_t ndims = PyTuple_Size(tuple_key);
+
+    for (Py_ssize_t i = 0; i < ndims; i++)
+    {
+        PyObject *item = PyTuple_GetItem(tuple_key, i);
+        TensorBaseSubscript *subscript = subscripts + i;
+
+        if (PyLong_Check(item))
+        {
+            long index = PyLong_AsLong(item);
+            if (index < 0)
+            {
+                PyErr_SetString(PyExc_ValueError, "Negative indices are not supported");
+                return -1;
+            }
+
+            subscript->type = INDEX;
+            subscript->start = index;
+            subscript->stop = 0; // Not used for INDEX type
+            subscript->step = 0; // Not used for INDEX type
+        }
+        else if (PySlice_Check(item))
+        {
+            Py_ssize_t start, stop, step;
+            if (PySlice_Unpack(item, &start, &stop, &step) < 0)
+            {
+                PyErr_SetString(PyExc_ValueError, "Unable to unpack slice object in key");
+                return -1;
+            }
+            Py_ssize_t _ = PySlice_AdjustIndices(PY_SSIZE_T_MAX, &start, &stop, step);
+
+            if (start < 0 || stop < 0 || step < 0)
+            {
+                PyErr_SetString(PyExc_ValueError, "Negative indices are not supported");
+                return -1;
+            }
+
+            subscript->type = SLICE;
+            subscript->start = (long)start;
+            subscript->stop = (long)stop;
+            subscript->step = (long)step;
+        }
+        // Handle invalid type
+        else
+        {
+            PyErr_SetString(PyExc_TypeError, "Invalid index type: must be integer or slice");
+            return -1;
+        }
+    }
+
+    return (long)ndims;
+}
+
+static Py_ssize_t PyTensorBase_length(PyObject *o)
+{
+    return (Py_ssize_t)((PyTensorBase *)o)->tb.ndim;
+}
+
+static PyObject *PyTensorBase_getitem(PyObject *o, PyObject *key)
+{
+    SubscriptArray subscripts;
+    memset(subscripts, 0, MAX_RANK * sizeof(TensorBaseSubscript));
+    long num_subscripts = parse_key_to_subscripts(key, subscripts);
+    if (num_subscripts < 0)
+    {
+        // Error occured;
+        return NULL;
+    }
+
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+
+    TensorBase *in = &((PyTensorBase *)o)->tb;
+    TensorBase *out = &((PyTensorBase *)result)->tb;
+
+    StatusCode status = TensorBase_get(in, subscripts, num_subscripts, out);
+    switch (status)
+        {
+        case OK:
+            break;
+        case NOT_IMPLEMENTED:
+            PyErr_SetString(PyExc_NotImplementedError, "__getitem__ is not yet implemented for Tensors.");
+            return NULL;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
+            return NULL;
+        }
+
+    return (PyObject *)result;
+}
+
+static int PyTensorBase_setitem(PyObject *o, PyObject *key, PyObject *v)
+{
+    SubscriptArray subscripts;
+    memset(subscripts, 0, MAX_RANK * sizeof(TensorBaseSubscript));
+    long num_subscripts = parse_key_to_subscripts(key, subscripts);
+    if (num_subscripts < 0)
+    {
+        // Error occured;
+        return -1;
+    }
+
+    TensorBase *in = &((PyTensorBase *)o)->tb;
+
+    if (PyLong_Check(v))
+    {
+        scalar s = PyFloat_AsDouble(v);
+        StatusCode status = TensorBase_set_scalar(in, subscripts, num_subscripts, s);
+        switch (status)
+        {
+        case OK:
+            break;
+        case NOT_IMPLEMENTED:
+            PyErr_SetString(PyExc_NotImplementedError, "__setitem__ is not yet implemented for scalars.");
+            return -1;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "Unknown Error");
+            return -1;
+        }
+    }
+    else if (PyTensorBase_Check(v))
+    {
+        TensorBase *t = &((PyTensorBase *)v)->tb;
+        StatusCode status = TensorBase_set_tensorbase(in, subscripts, num_subscripts, t);
+        switch (status)
+        {
+        case OK:
+            break;
+        case NOT_IMPLEMENTED:
+            PyErr_SetString(PyExc_NotImplementedError, "__setitem__ is not yet implemented for Tensors.");
+            return -1;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "Unknown Error");
+            return -1;
+        }
+    }
+    else
+    {
+        PyErr_SetString(PyExc_ValueError, "Set value must either be a Float, or another Tensorbase object.");
+        return NULL;
+    }
+
+    return 0;
 }

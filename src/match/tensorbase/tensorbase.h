@@ -100,7 +100,7 @@ typedef enum
 } IndexType;
 
 // Definition of an indexing slice object for implementing getitem and setitem.
-typedef struct _TensorBase_Stride
+typedef struct _TensorBase_Subscript
 {
     // The type of indexing primitive used to access data at a particular dimension of a tensor.
     IndexType type;

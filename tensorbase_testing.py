@@ -13,7 +13,7 @@ def make_tensorbases(shape, num_tensorbases = 2):
 
 
 if __name__ == "__main__":
-    m1, m2 = make_tensorbases((1,1,3))
-    m3, m4 = make_tensorbases(())
-    print(m1@m3)
+    m1, m2 = make_tensorbases((5,4,3,4))
+    m1[0:5] = 5
+    
 

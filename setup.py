@@ -13,6 +13,7 @@ tensorbase_module = Extension(
         f"{DIR}/tensorbase_string.c",
         f"{DIR}/tensorbase_transform.c",
         f"{DIR}/tensorbase_util.c",
+        f"{DIR}/tensorbase_subscripting.c",
     ],
     include_dirs=[DIR],
     extra_compile_args=["-fvisibility=default"],
