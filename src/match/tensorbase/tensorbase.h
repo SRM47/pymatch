@@ -61,7 +61,9 @@ typedef enum
 } AggScalarOperation;
 
 // Enum for status codes
-typedef enum{
+// TODO: Prefix status codes with `TB_` or `TensorBase_`; Be consistent with naming
+typedef enum
+{
     OK,
     MALLOC_ERR,
     NULL_INPUT_ERR,
@@ -89,6 +91,31 @@ typedef struct _TensorBase
     StrideArray strides; // Strides of tensor (0 indicates end of array)
     scalar *data;        // Tensor data
 } TensorBase;
+
+// The type of indexing primitive used to access data at a particular dimension of a tensor.
+typedef enum
+{
+    INDEX, // e.g., t[0, 3, 4]
+    SLICE  // e.g., t[0:5:2].
+} IndexType;
+
+// Definition of an indexing slice object for implementing getitem and setitem.
+typedef struct _TensorBase_Stride
+{
+    // The type of indexing primitive used to access data at a particular dimension of a tensor.
+    IndexType type;
+    // If the type of index is INDEX, start is used as the index at the dimension.
+    // If the type of the index in SLICE, the fields start, stop, step are interpreted as a Python Slice object.
+    // Negative indices are not supported.
+    long start;
+    long stop;
+    long step;
+} TensorBaseSubscript;
+
+typedef TensorBaseSubscript SubscriptArray[MAX_RANK];  
+
+
+// TODO: Refactor code to calculate ndim in methods instead of passing in ndim to function parameters to increase reliability.
 
 /*********************************************************
  *                    Alloc & Dealloc                    *
@@ -144,3 +171,12 @@ EXPORT StatusCode TensorBase_fill_(TensorBase *in, scalar fill_value);
 EXPORT StatusCode TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma);
 
 EXPORT StatusCode TensorBase_item(TensorBase *t, scalar *item);
+
+/*********************************************************
+ *                     Set and Get                       *
+ *********************************************************/
+
+EXPORT StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *out);
+
+EXPORT StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long num_subscripts, scalar s);
+EXPORT StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *t);

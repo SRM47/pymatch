@@ -7,7 +7,8 @@
 
 #include "tensorbase.h"
 
-#define RETURN_IF_ERROR(x) ({StatusCode _status = x; if (_status != OK) { return _status; }})
+// C macro do{}while(0).
+#define RETURN_IF_ERROR(x) ({ StatusCode _status = x; if (_status != OK) { return _status; } })
 
 static inline long max_long(long a, long b)
 {
