@@ -7,6 +7,7 @@
 #include "tensorbase_util.c"
 
 // Assumes that index is already a valid coordinate!
+// TODO: rename this method to be indicicative of what it does and split up this function
 StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
                                            long num_subscripts,
                                            ShapeArray tb_shape,
@@ -20,9 +21,10 @@ StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
     }
 
     long new_ndim = 0;
+    long i = 0;
 
     // Process each subscript
-    for (long i = 0; i < num_subscripts; i++)
+    for (; i < num_subscripts; i++)
     {
         TensorBaseSubscript *sub = subscripts + i;
         long slice_start = sub->start;
@@ -69,6 +71,15 @@ StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
         default:
             return NULL_INPUT_ERR;
         }
+    }
+
+    // Add redundant slices to the list of subscripts so it has ndim slices.
+    while (tb_shape[i] >= 0) {
+        TensorBaseSubscript sub = {SLICE, 0, tb_shape[i], 1};
+        subscripts[i] = sub;
+        shape[new_ndim] = tb_shape[i];
+        new_ndim++;
+        i++;
     }
 
     // Update the number of dimensions
@@ -118,6 +129,7 @@ StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_su
     long new_ndim;
     ShapeArray new_shape;
     RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
+    num_subscripts = in->ndim;
 
     print_long_list(new_shape, 8);
 
@@ -127,6 +139,7 @@ StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_su
     IndexArray curr_index;
     memset(curr_index, 0, MAX_RANK * sizeof(long));
     // Initialize curr_index to the starting position of all subscripts.
+    // By this point, there are in->ndim subscrtips;
     for (long i = 0; i < num_subscripts; i++)
     {
         curr_index[i] = subscripts[i].start;

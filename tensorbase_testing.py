@@ -19,10 +19,6 @@ if __name__ == "__main__":
     m3.fill_(1000)
     print(m1)
     print()
-    print(m1[2,1,2])
-    print(m1[::2,1,2:3:2])
-
-    m1[::2,1,2:3:2] = m3
-    print(m1)
+    print(m1[2,1])
     
 

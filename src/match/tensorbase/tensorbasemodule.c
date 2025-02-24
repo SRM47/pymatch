@@ -1319,9 +1319,9 @@ static int PyTensorBase_setitem(PyObject *o, PyObject *key, PyObject *v)
 
     TensorBase *in = &((PyTensorBase *)o)->tb;
 
-    if (PyLong_Check(v))
+    if (PyFloatOrLong_Check(v))
     {
-        scalar s = PyFloat_AsDouble(v);
+        scalar s = PyFloatOrLong_asDouble(v);
         StatusCode status = TensorBase_set_scalar(in, subscripts, num_subscripts, s);
         switch (status)
         {

@@ -224,7 +224,7 @@ class TestTensorBase(BaseUnitTest):
                     0,
                     0,
                     0,
-                    47.0,
+                    47,
                     0,
                     0,
                     0,
@@ -284,7 +284,7 @@ class TestTensorBase(BaseUnitTest):
             )
 
         with self.subTest(msg="oob_failure"):
-            tensor = TensorBase(shape=(2, 3, 4, 5))
+            tensor = TensorBase((2, 3, 4, 5))
 
             def setitem_helper():
                 tensor[1, 2, 3, 5] = 47.0
