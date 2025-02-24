@@ -1214,6 +1214,7 @@ static PyObject *PyTensorBase_richcompare(PyObject *self, PyObject *other, int o
 
 long parse_key_to_subscripts(PyObject *key, SubscriptArray subscripts)
 {
+    memset(subscripts, 0, MAX_RANK * sizeof(TensorBaseSubscript));
     // If key is not a tuple, convert it to a single-element tuple
     PyObject *tuple_key = PyTuple_Check(key) ? key : PyTuple_Pack(1, key);
     Py_ssize_t ndims = PyTuple_Size(tuple_key);
@@ -1277,7 +1278,6 @@ static Py_ssize_t PyTensorBase_length(PyObject *o)
 static PyObject *PyTensorBase_getitem(PyObject *o, PyObject *key)
 {
     SubscriptArray subscripts;
-    memset(subscripts, 0, MAX_RANK * sizeof(TensorBaseSubscript));
     long num_subscripts = parse_key_to_subscripts(key, subscripts);
     if (num_subscripts < 0)
     {
