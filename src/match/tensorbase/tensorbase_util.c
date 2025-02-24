@@ -15,6 +15,11 @@ static inline long max_long(long a, long b)
     return a > b ? a : b;
 }
 
+static inline long min_long(long a, long b)
+{
+    return a < b ? a : b;
+}
+
 static inline int TensorBase_is_singleton(TensorBase *t)
 {
     return t->ndim == 0;
@@ -44,6 +49,17 @@ static StatusCode TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
         }
     }
 
+    return OK;
+}
+
+static StatusCode TensorBase_convert_indices_to_data_index(TensorBase *in, IndexArray curr_index, long *index)
+{
+    long res = 0;
+    for (long i = 0; i < in->ndim; i++)
+    {
+        res += in->strides[i] * curr_index[i];
+    }
+    *index = res;
     return OK;
 }
 
