@@ -6,14 +6,14 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-StatusCode TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
+StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
 {
     if (ndim > MAX_RANK || ndim < 0)
     {
         return NDIM_OUT_OF_BOUNDS;
     }
 
-    if (td == NULL)
+    if (tb == NULL)
     {
         return NULL_INPUT_ERR;
     }
@@ -71,18 +71,18 @@ StatusCode TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         data = NULL;
     }
 
-    td->numel = numel;
-    td->ndim = ndim;
-    memcpy(td->shape, shape, MAX_RANK * sizeof(long));
-    memcpy(td->strides, strides, MAX_RANK * sizeof(long));
-    td->data = data;
+    tb->numel = numel;
+    tb->ndim = ndim;
+    memcpy(tb->shape, shape, MAX_RANK * sizeof(long));
+    memcpy(tb->strides, strides, MAX_RANK * sizeof(long));
+    tb->data = data;
 
     return OK;
 }
 
-void TensorBase_dealloc(TensorBase *td)
+void TensorBase_dealloc(TensorBase *tb)
 {
-    if (td == NULL)
+    if (tb == NULL)
     {
         return;
     }
@@ -91,10 +91,10 @@ void TensorBase_dealloc(TensorBase *td)
     // Sington tensor structs do not point to address on heap,
     // rather directly store data in the pointer variable.
     // also assumes only one pointer to data. will not implementreference counting if we start to share memory between tensors
-    if (td->data != NULL && !TensorBase_is_singleton(td))
+    if (tb->data != NULL && !TensorBase_is_singleton(tb))
     {
-        free(td->data);
+        free(tb->data);
     }
     // Use memset to zero out shape and strides arrays safely.
-    memset(td, 0, sizeof(TensorBase));
+    memset(tb, 0, sizeof(TensorBase));
 }

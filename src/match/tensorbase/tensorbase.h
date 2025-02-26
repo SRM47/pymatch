@@ -133,7 +133,7 @@ EXPORT void TensorBase_dealloc(TensorBase *tb);
  *********************************************************/
 
 // EXPORT void TensorBase_to_string(TensorBase *td, char *buffer, size_t buffer_size);
-EXPORT void TensorBase_to_string(TensorBase *td);
+EXPORT void TensorBase_to_string(TensorBase *tb);
 
 /*********************************************************
  *                     Braodcasting                      *
@@ -160,7 +160,7 @@ EXPORT StatusCode TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, Tenso
  *                      Aggregation                      *
  *********************************************************/
 
-EXPORT StatusCode TensorBase_aggregate(TensorBase *in, IndexArray dim, int keepdim, TensorBase *out, AggScalarOperation agg);
+EXPORT StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimensions, int keepdim, TensorBase *out, AggScalarOperation agg);
 
 /*********************************************************
  *                     Manipulation                      *
