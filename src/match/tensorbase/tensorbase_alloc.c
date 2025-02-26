@@ -8,7 +8,6 @@
 
 StatusCode TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
 {
-    
     if (ndim > MAX_RANK || ndim < 0)
     {
         return NDIM_OUT_OF_BOUNDS;
@@ -19,63 +18,64 @@ StatusCode TensorBase_init(TensorBase *td, ShapeArray shape, long ndim)
         return NULL_INPUT_ERR;
     }
 
-    // Initialize Tensorbase instance variables.
-    td->numel = 1;
-    td->ndim = ndim;
-    for (size_t i = 0; i < MAX_RANK; i++)
+    for (int dim = ndim; dim < MAX_RANK; dim++)
     {
-        td->shape[i] = -1.0;
+        shape[dim] = -1;
     }
-    memset(td->strides, 0, MAX_RANK * sizeof(long));
 
-    // Calculate Tensorbase shape and number of elements.
+    // Calculate number of elements.
+    long numel = 1;
     long numel_for_stride = 1;
-    for (int i = 0; i < ndim; i++)
+    for (int dim = 0; dim < ndim; dim++)
     {
-        long dim = shape[i];
-        if (dim < 0)
+        long dimension_size = shape[dim];
+        if (dimension_size < 0)
         {
-            // All dimensions must be >= 0 (-1 indicates no-dimension).
             return INVALID_DIMENSION_SIZE;
         }
-        td->numel *= dim;
-        td->shape[i] = dim;
-        if (dim > 0)
+        numel *= dimension_size;
+        if (dimension_size > 0)
         {
-            numel_for_stride *= dim;
+            numel_for_stride *= dimension_size;
         }
     }
 
-    // Calculate Tensorbase strides.
+    // Calculate strides.
+    StrideArray strides;
+    memset(strides, 0, MAX_RANK * sizeof(long));
     long stride = numel_for_stride;
-    for (long i = 0; i < ndim; i++)
+    for (long dim = 0; dim < ndim; dim++)
     {
-        long dim = shape[i];
-        if (dim > 0)
+        long dimension_size = shape[dim];
+        if (dimension_size > 0)
         {
-            stride /= dim;
+            stride /= dimension_size;
         }
-        td->strides[i] = stride;
+        strides[dim] = stride;
     }
 
-    // Allocate the memory, but do not initialize it's values.
-    // If TensorBase is singleton, the data pointer will hold the value
-    // instead of pointing to a one element array.
+    // Allocate (ONLY) the memory for the underlying data of the TensorBase struct.
+    // If the TensorBase is singleton, the data pointer will hold the value instead of pointing to a one element array.
+    scalar *data;
     if (ndim != 0)
     {
-        td->data = (scalar *)malloc(td->numel * sizeof(scalar));
-        if (td->data == NULL)
+        data = (scalar *)malloc(numel * sizeof(scalar));
+        if (data == NULL)
         {
-            // Memory error.
             return MALLOC_ERR;
         }
     }
     else
     {
         // If singleton, initialize the pointer to be null.
-        // TensorBase_create_tensor_like will not free this then,
-        td->data = NULL;
+        data = NULL;
     }
+
+    td->numel = numel;
+    td->ndim = ndim;
+    memcpy(td->shape, shape, MAX_RANK * sizeof(long));
+    memcpy(td->strides, strides, MAX_RANK * sizeof(long));
+    td->data = data;
 
     return OK;
 }
