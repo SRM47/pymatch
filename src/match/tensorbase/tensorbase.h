@@ -82,6 +82,7 @@ typedef enum
     INDEX_OUT_OF_BOUNDS,
     STATUS_SUBSCRIPT_INVALID_PARAMETER,
     INVALID_SHAPES_FOR_SET,
+    INVALID_OPERATION,
 } StatusCode;
 
 // Definition of a TensorBase struct.
