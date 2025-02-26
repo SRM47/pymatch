@@ -178,6 +178,7 @@ StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long
     long new_ndim;
     ShapeArray new_shape;
     RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
+    num_subscripts = in->ndim;
 
     long numel_to_set = 1;
     for (long i = 0; i < new_ndim; i++)
@@ -223,6 +224,7 @@ StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, 
     long new_ndim;
     ShapeArray new_shape;
     RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
+    num_subscripts = in->ndim;
 
     // Verify that the shape from the subscripts (key) is the same as the tensorbase to set
     if (!TensorBase_same_shape(new_shape, t->shape))
