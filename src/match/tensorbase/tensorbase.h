@@ -6,6 +6,12 @@
 #define EXPORT
 #endif
 
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+
 /*********************************************************
  *                        GLOBALS                        *
  *********************************************************/
@@ -116,8 +122,7 @@ typedef struct _TensorBase_Subscript
     long step;
 } TensorBaseSubscript;
 
-typedef TensorBaseSubscript SubscriptArray[MAX_RANK];  
-
+typedef TensorBaseSubscript SubscriptArray[MAX_RANK];
 
 // TODO: Refactor code to calculate ndim in methods instead of passing in ndim to function parameters to increase reliability.
 

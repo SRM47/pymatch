@@ -6,34 +6,6 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-static StatusCode TensorBase_can_broadcast(ShapeArray source_shape, long source_ndim, ShapeArray target_shape, long target_ndim)
-{
-    if (source_ndim > target_ndim)
-    {
-        return INCOMPATABLE_BROASCAST_SHAPES;
-    }
-
-    // Broadcast dimension initializations.
-    long source_dimension = source_ndim - 1;
-    long target_dimension = target_ndim - 1;
-
-    while (source_dimension >= 0)
-    {
-        if (source_shape[source_dimension] == 1 || target_shape[target_dimension] == 1 || source_shape[source_dimension] == target_shape[target_dimension])
-        {
-            continue;
-        }
-        else
-        {
-            return INCOMPATABLE_BROASCAST_SHAPES;
-        }
-        source_dimension--;
-        target_dimension--;
-    }
-
-    return OK;
-}
-
 StatusCode TensorBase_broadcast_to(TensorBase *in, ShapeArray target_shape, long target_ndim, TensorBase *out)
 {
     return NOT_IMPLEMENTED;

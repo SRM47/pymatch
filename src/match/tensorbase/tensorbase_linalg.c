@@ -54,6 +54,7 @@ static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, 
 StatusCode TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
     RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
+
     if (TensorBase_is_singleton(a))
     {
         // Copy the bits of a->data into a_value.
@@ -67,9 +68,11 @@ StatusCode TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, Tenso
     }
     else
     {
+        scalar *a_data = a->data;
+        scalar *out_data = out->data;
         for (long i = 0; i < out->numel; i++)
         {
-            apply_binop(binop, a->data[i], s, out->data + i);
+            apply_binop(binop, a_data[i], s, out_data + i); // out->data[i] = a->data[i] `op` s;
         }
     }
     return OK;
@@ -78,6 +81,7 @@ StatusCode TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, Tenso
 StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
 {
     RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
+
     if (TensorBase_is_singleton(a))
     {
         // Copy the bits of a->data into a_value.
@@ -91,9 +95,11 @@ StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, Tenso
     }
     else
     {
+        scalar *a_data = a->data;
+        scalar *out_data = out->data;
         for (long i = 0; i < out->numel; i++)
         {
-            apply_binop(binop, s, a->data[i], out->data + i);
+            apply_binop(binop, s, a_data[i], out_data + i); // out->data[i] = s `op` a->data[i];
         }
     }
     return OK;
@@ -101,7 +107,7 @@ StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, Tenso
 
 StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase *b, TensorBase *out, BinaryScalarOperation binop)
 {
-    // Check if a is a singleton.
+    // If `a` is a singleton, perform operation as if `a` is a scalar.
     if (TensorBase_is_singleton(a))
     {
         scalar s;
@@ -109,7 +115,7 @@ StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
         return TensorBase_binary_op_scalar_tensorbase(b, s, out, binop);
     }
 
-    // Check if b is a singleton.
+    // If `b` is a singleton, perform operation as if `b` is a scalar.
     if (TensorBase_is_singleton(b))
     {
         scalar s;
@@ -117,19 +123,23 @@ StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
         return TensorBase_binary_op_tensorbase_scalar(a, s, out, binop);
     }
 
-    // Check if the two tensorbase structures don't have the same dimensions
     if (TensorBase_same_shape(a->shape, b->shape))
     {
-        // They have the same shape.
+        // They have the same shape, so no broadcasting is required.
         RETURN_IF_ERROR(TensorBase_create_empty_like(a, out));
+
+        scalar *a_data = a->data;
+        scalar *b_data = b->data;
+        scalar *out_data = out->data;
+
         for (long i = 0; i < out->numel; i++)
         {
-            apply_binop(binop, a->data[i], b->data[i], out->data + i);
+            apply_binop(binop, a_data[i], b_data[i], out_data + i); // out->data[i] = a->data[i] `op` b->data[i];
         }
     }
     else
     {
-        // They don't have the same shape must *attempt to* broadcast.
+        // Tensors that do not have the same shape must at least be broadcastable.
         ShapeArray broadcasted_tensor_shape;
         long broadcasted_tensor_ndim;
         RETURN_IF_ERROR(TensorBase_get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcasted_tensor_shape, &broadcasted_tensor_ndim));
@@ -138,33 +148,20 @@ StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *a, TensorBase 
         // Loop through each element in the broadcasted tensor's data.
         for (long broadcasted_data_index = 0; broadcasted_data_index < out->numel; broadcasted_data_index++)
         {
-            // For each element in the data index, calculate the corresponding
-            // element in each of the input tensors.
-            long a_data_index = 0;
-            long b_data_index = 0;
-
-            long a_dim = a->ndim - 1;
-            long b_dim = b->ndim - 1;
-            long broadcast_dim = out->ndim - 1;
-
-            long temp = broadcasted_data_index;
-
-            for (; broadcast_dim >= 0; broadcast_dim--, a_dim--, b_dim--)
-            {
-                // (2,5,6)
-                long broadcast_coordinate_at_curr_dim = temp % out->shape[broadcast_dim];
-                temp /= out->shape[broadcast_dim];
-
-                if (a_dim >= 0 && a->shape[a_dim] > 1)
-                {
-                    a_data_index += broadcast_coordinate_at_curr_dim * a->strides[a_dim];
-                }
-
-                if (b_dim >= 0 && b->shape[b_dim] > 1)
-                {
-                    b_data_index += broadcast_coordinate_at_curr_dim * b->strides[b_dim];
-                }
-            }
+            // Calculate the corresponding data index in each of the input tensors data array.
+            long a_data_index, b_data_index;
+            TensorBase_get_translated_data_indices_from_broadcasted_index(
+                /* a_shape= */ a->shape,
+                /* a_strides= */ a->strides,
+                /* a_ndim= */ a->ndim,
+                /* b_shape= */ b->shape,
+                /* b_strides= */ b->strides,
+                /* b_ndim= */ b->ndim,
+                /* broadcasted_shape= */ broadcasted_tensor_shape,
+                /* broadcasted_ndim= */ broadcasted_tensor_ndim,
+                /* broadcasted_data_index= */ broadcasted_data_index,
+                &a_data_index,
+                &b_data_index);
 
             apply_binop(binop, a->data[a_data_index], b->data[b_data_index], out->data + broadcasted_data_index);
         }
@@ -319,7 +316,7 @@ StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a, Tensor
     {
         if (a->shape[1] != b->shape[0])
         {
-            return -1;
+            return MATMUL_INCOMPATABLE_SHAPES;
         }
         shape[0] = a->shape[0];
         shape[1] = b->shape[1];
@@ -424,28 +421,6 @@ StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a, Tensor
     return OK;
 }
 
-StatusCode matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, scalar *out)
-{
-    // Assumes A is a n x l matrix
-    // Assumes B is a l x m matrix
-    // out = A@B will be a n x m matrix
-    // Assumes out is already allocated
-    for (long i = 0; i < n; i++)
-    {
-        for (long j = 0; j < m; j++)
-        {
-            scalar sum = 0;
-            for (long k = 0; k < l; k++)
-            {
-                sum += A[i * l + k] * B[k * m + j];
-            }
-            out[i * m + j] = sum;
-        }
-    }
-
-    return OK;
-}
-
 StatusCode TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *out)
 {
     if (a == NULL || b == NULL || out == NULL)
@@ -466,15 +441,15 @@ StatusCode TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *
     }
     else if (a->ndim == 1 && b->ndim == 2)
     {
-        return matrix_multiply_2d(a->data, b->data, 1, a->shape[0], b->shape[1], out->data);
+        matrix_multiply_2d(a->data, b->data, 1, a->shape[0], b->shape[1], out->data);
     }
     else if (a->ndim == 2 && b->ndim == 1)
     {
-        return matrix_multiply_2d(a->data, b->data, a->shape[0], b->shape[0], 1, out->data);
+        matrix_multiply_2d(a->data, b->data, a->shape[0], b->shape[0], 1, out->data);
     }
     else if (a->ndim == 2 && b->ndim == 2)
     {
-        return matrix_multiply_2d(a->data, b->data, a->shape[0], a->shape[1], b->shape[1], out->data);
+        matrix_multiply_2d(a->data, b->data, a->shape[0], a->shape[1], b->shape[1], out->data);
     }
     else
     {
@@ -518,33 +493,23 @@ StatusCode TensorBase_matrix_multiply(TensorBase *a, TensorBase *b, TensorBase *
         {
             // For each element in the data index, calculate the corresponding
             // element in each of the input tensors.
-            long a_data_index = 0;
-            long b_data_index = 0;
+            long a_data_index, b_data_index;
+            TensorBase_get_translated_data_indices_from_broadcasted_index(
+                /* a_shape= */ a->shape,
+                /* a_strides= */ a->strides,
+                /* a_ndim= */ batch_dims_a,
+                /* b_shape= */ b->shape,
+                /* b_strides= */ b->strides,
+                /* b_ndim= */ batch_dims_b,
+                /* broadcasted_shape= */ out->shape,
+                /* broadcasted_ndim= */ batch_dims,
+                /* broadcasted_data_index= */ broadcasted_data_index,
+                &a_data_index,
+                &b_data_index);
 
-            long a_dim = batch_dims_a - 1;
-            long b_dim = batch_dims_b - 1;
-            long broadcast_dim = batch_dims - 1;
-
-            long temp = broadcasted_data_index;
-
-            for (; broadcast_dim >= 0; broadcast_dim--, a_dim--, b_dim--)
-            {
-                long broadcast_coordinate_at_curr_dim = temp % out->shape[broadcast_dim];
-                temp /= out->shape[broadcast_dim];
-
-                if (a_dim >= 0 && a->shape[a_dim] > 1)
-                {
-                    a_data_index += broadcast_coordinate_at_curr_dim * a->strides[a_dim];
-                }
-
-                if (b_dim >= 0 && b->shape[b_dim] > 1)
-                {
-                    b_data_index += broadcast_coordinate_at_curr_dim * b->strides[b_dim];
-                }
-            }
-
-            RETURN_IF_ERROR(matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m));
-        }
-        return OK;
+            matrix_multiply_2d(a->data + a_data_index, b->data + b_data_index, n, l, m, out->data + broadcasted_data_index * n * m);
+        } 
     }
+
+    return OK;
 }
