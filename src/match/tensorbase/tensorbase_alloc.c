@@ -23,9 +23,12 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
         shape[dim] = -1;
     }
 
-    // Calculate number of elements.
+    // `numel` stores the total number of elements in the tensor.
     long numel = 1;
+    // `numel_for_strides` is calculated differently, multiplying only dimensions with sizes greater than zero.
     long numel_for_stride = 1;
+    // This distinction is crucial for stride calculation. A dimension of size zero effectively has a stride of 1.
+    // To simplify stride computations, we use `numel_for_strides` which treats zero-sized dimensions as contributing a multiplicative factor of 1, rather than 0.
     for (int dim = 0; dim < ndim; dim++)
     {
         long dimension_size = shape[dim];
@@ -41,9 +44,15 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
     }
 
     // Calculate strides.
+    // Strides tell you how many elements you need to skip in memory to move to the next element along a specific dimension.
+    // For instance, suppose a tensor with a shape [2,3,4], the strides array will be [12, 4, 1].
+    // * The stride of the first dimension (2), is the number of elements (in memory) between [0,0,0] and [1,0,0], which is 12.
+    // * The stride of the second dimension (3), is the number of elements (in memory) between [0,1,0] and [0,1,0], which is 4.
+    // * The stride of the third (last) dimension (4), is the number of elements (in memory) between [0,0,0] and [0,0,1], which is 1.
+    // Computationally, the stride at a specific dimension is the product of all latter dimensions.
     StrideArray strides;
-    memset(strides, 0, MAX_RANK * sizeof(long));
-    long stride = numel_for_stride;
+    memset(strides, 0, MAX_RANK * sizeof(long)); // Initialize strides to 0.
+    long stride = numel_for_stride;              // Start with total element count (excluding zero-sized dims).
     for (long dim = 0; dim < ndim; dim++)
     {
         long dimension_size = shape[dim];
@@ -87,10 +96,8 @@ void TensorBase_dealloc(TensorBase *tb)
         return;
     }
 
-    // Only free the pointer if not singleton.
-    // Sington tensor structs do not point to address on heap,
-    // rather directly store data in the pointer variable.
-    // also assumes only one pointer to data. will not implementreference counting if we start to share memory between tensors
+    // Frees tensorbase data, except for singletons. Assumes exclusive data ownership to avoid implementing reference counting.
+    // Singletons store data directly, not on the heap (i.e., with malloc).
     if (tb->data != NULL && !TensorBase_is_singleton(tb))
     {
         free(tb->data);
