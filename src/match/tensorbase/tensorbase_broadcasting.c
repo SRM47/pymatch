@@ -70,22 +70,22 @@ StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray target_shape, long 
 
         // Collate the dimensions in the target unbroadcasted shape that had a size of 1. Then, aggregate (sum) over those dimensions.
         IndexArray originally_ones;
-        long dim = 0;
+        long ones_dimension_count = 0;
         // Identify dimensions that were originally of size 1.
         for (long i = 0; i < target_ndim; i++)
         {
             if (target_shape[i] == 1)
             {
-                originally_ones[dim] = i;
-                dim++;
+                originally_ones[ones_dimension_count] = i;
+                ones_dimension_count++;
             }
         }
         // If there were dimensions of size 1, perform aggregation.
-        if (dim > 0)
+        if (ones_dimension_count > 0)
         {
             // Pad the remaining indices of originally_ones with -1.
             // This is needed for the TensorBase_aggregate function.
-            for (; dim < MAX_RANK; dim++)
+            for (long dim = ones_dimension_count; dim < MAX_RANK; dim++)
             {
                 originally_ones[dim] = -1;
             }
