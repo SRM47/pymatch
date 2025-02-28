@@ -6,6 +6,7 @@
     "files.associations": {
         "math.h": "c",
         "stdio.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "ios": "c"
     }
 }

@@ -139,8 +139,8 @@ EXPORT void TensorBase_to_string(TensorBase *tb);
  *                     Braodcasting                      *
  *********************************************************/
 
-EXPORT StatusCode TensorBase_broadcast_to(TensorBase *in, ShapeArray broadcast_shape, int *broadcast_ndim, TensorBase *out);
-EXPORT StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray shape, long ndim, TensorBase *out);
+EXPORT StatusCode TensorBase_broadcast_to(TensorBase *in, ShapeArray target_shape, long target_ndim, TensorBase *out);
+EXPORT StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray target_shape, long target_ndim, TensorBase *out);
 
 /*********************************************************
  *                    Linear Algebra                     *
