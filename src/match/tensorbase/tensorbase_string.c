@@ -1,47 +1,48 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-static void TensorBase_to_string_data(TensorBase *tb, long curr_dim, long data_index, long *spaces, int print)
+static void pretty_print_tensor_data_array(TensorBase *tb, long curr_dim, long data_index, long *offset, bool was_previous_char_newline)
 {
-    // if previous char wasa  newline, print spaces according to # of [ - # of ] in previous line.
-    if (print)
+    if (was_previous_char_newline)
     {
-
-        for (long i = 0; i < *spaces; i++)
-        {
-            printf(" ");
-        }
+        // Print `offset` number of spaces.
+        printf("%*s", (int)*offset - 1, "");
     }
+
+    long dimension_size = tb->shape[curr_dim];
 
     if (curr_dim >= tb->ndim - 1)
     {
         printf("[");
-        long i = 0;
-        for (; i < tb->shape[curr_dim] - 1; i++)
+        for (long i = 0; i < dimension_size; i++)
         {
-            printf("%.2f,", tb->data[data_index + i]);
+            printf("%.2f", tb->data[data_index + i]);
+            if (i < dimension_size - 1)
+            {
+                printf(",");
+            }
         }
-        printf("%.2f", tb->data[data_index + i]);
         printf("]");
         return;
     }
 
     printf("[");
-    *spaces += 1;
-    int should_print = 0;
-    long i = 0;
-    for (; i < tb->shape[curr_dim] - 1; i++)
+    *offset += 1;
+    for (long i = 0; i < dimension_size; i++)
     {
-        TensorBase_to_string_data(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
-        printf(",\n");
-        should_print = 1;
+        long next_data_index = data_index + tb->strides[curr_dim] * i;
+        was_previous_char_newline = (i != 0); // The first iteration of the loop did not have a preceeding newline.
+        pretty_print_tensor_data_array(tb, curr_dim + 1, next_data_index, offset, was_previous_char_newline);
+        if (i < dimension_size - 1)
+        {
+            printf(",\n");
+        }
     }
-    TensorBase_to_string_data(tb, curr_dim + 1, data_index + tb->strides[curr_dim] * i, spaces, should_print);
     printf("]");
-    *spaces -= 1;
+    *offset -= 1;
 }
 
-static void TensorBase_to_string_attributes(TensorBase *tb)
+static void pretty_print_tensor_attributes(TensorBase *tb)
 {
     printf("ndim: %ld, numel: %ld, ", tb->ndim, tb->numel);
     printf("shape: (");
@@ -60,6 +61,11 @@ static void TensorBase_to_string_attributes(TensorBase *tb)
 
 void TensorBase_to_string(TensorBase *tb)
 {
+    if (tb == NULL)
+    {
+        return;
+    }
+    // Print the tensor contents.
     if (TensorBase_is_singleton(tb))
     {
         scalar value;
@@ -68,10 +74,14 @@ void TensorBase_to_string(TensorBase *tb)
     }
     else
     {
-        printf("Tensor(");
-        long spaces = 7;
-        TensorBase_to_string_data(tb, 0, 0, &spaces, 0);
+        const char *tensor_name = "tensor";
+        long initial_data_offset = sizeof(tensor_name) + 1;
+
+        printf(tensor_name);
+        printf("(");
+        pretty_print_tensor_data_array(tb, 0, 0, &initial_data_offset, false);
         printf(")\n");
     }
-    TensorBase_to_string_attributes(tb);
+    // Print the shape, strides, ndim, and numel.
+    pretty_print_tensor_attributes(tb);
 }
