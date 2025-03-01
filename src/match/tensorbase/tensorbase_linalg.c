@@ -205,17 +205,17 @@ StatusCode TensorBase_matrix_multiply(TensorBase *lhs, TensorBase *rhs, TensorBa
     }
     else if (lhs->ndim == 1 && rhs->ndim == 2)
     {
-        // (a) @ (a, b) can interpreted as (1, a) @ (a, b).
+        // (a) @ (a, b) is interpreted as (1, a) @ (a, b).
         matrix_multiply_2d(lhs->data, rhs->data, 1, lhs->shape[0] /* rhs->shape[0] */, rhs->shape[1], out->data);
     }
     else if (lhs->ndim == 2 && rhs->ndim == 1)
     {
-        // (a, b) @ (b) can interpreted as (a, b) @ (b, 1).
+        // (a, b) @ (b) is interpreted as (a, b) @ (b, 1).
         matrix_multiply_2d(lhs->data, rhs->data, lhs->shape[0], rhs->shape[0] /* lhs->shape[1] */, 1, out->data);
     }
     else if (lhs->ndim == 2 && rhs->ndim == 2)
     {
-        // (a, b) @ (b, c) can interpreted normally.
+        // (a, b) @ (b, c) is interpreted normally.
         matrix_multiply_2d(lhs->data, rhs->data, lhs->shape[0], lhs->shape[1] /* rhs->shape[0] */, rhs->shape[1], out->data);
     }
     else
