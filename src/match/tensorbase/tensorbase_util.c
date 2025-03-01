@@ -219,3 +219,196 @@ static void matrix_multiply_2d(scalar *A, scalar *B, long n, long l, long m, sca
         }
     }
 }
+
+static inline void apply_binop(BinaryScalarOperation binop, scalar a, scalar b, scalar *result)
+{
+    switch (binop)
+    {
+    case SCALAR_ADD:
+        *result = a + b;
+        break;
+    case SCALAR_SUB:
+        *result = a - b;
+        break;
+    case SCALAR_MULT:
+        *result = a * b;
+        break;
+    case SCALAR_FLOORDIV:
+        *result = floor(a / b);
+        break;
+    case SCALAR_TRUEDIV:
+        *result = a / b;
+        break;
+    case SCALAR_POWER:
+        *result = pow(a, b);
+        break;
+    case SCALAR_EQ:
+        *result = (a == b);
+        break;
+    case SCALAR_LT:
+        *result = (a < b);
+        break;
+    case SCALAR_GT:
+        *result = (a > b);
+        break;
+    case SCALAR_NEQ:
+        *result = (a != b);
+        break;
+    case SCALAR_LEQ:
+        *result = (a <= b);
+        break;
+    case SCALAR_GEQ:
+        *result = (a >= b);
+        break;
+    default:
+        break;
+    }
+}
+
+static inline void apply_uop(UnaryScalarOperation uop, scalar a, scalar *result)
+{
+    switch (uop)
+    {
+    case SCALAR_NEGATIVE:
+        *result = -a;
+        break;
+    case SCALAR_ABSOLUTE:
+        *result = fabs(a);
+        break;
+    case SCALAR_COS:
+        *result = cos(a);
+        break;
+    case SCALAR_SIN:
+        *result = sin(a);
+        break;
+    case SCALAR_TAN:
+        *result = tan(a);
+        break;
+    case SCALAR_TANH:
+        *result = tanh(a);
+        break;
+    case SCALAR_LOG:
+        *result = log(a);
+        break;
+    case SCALAR_EXP:
+        *result = exp(a);
+        break;
+    case SCALAR_SIGMOID:
+        *result = 1.0 / (1.0 + exp(-a));
+        break;
+    case SCALAR_RELU:
+        *result = fmax(0, a);
+        break;
+    default:
+        break;
+    }
+}
+
+static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a, TensorBase *b, TensorBase *out)
+{
+    if (a == NULL || b == NULL || out == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
+
+    if (TensorBase_is_singleton(a) || TensorBase_is_singleton(b))
+    {
+        return MATMUL_SINGLETON;
+    }
+
+    ShapeArray shape;
+    long ndim;
+
+    if (a->ndim == 1 && b->ndim == 1)
+    {
+        if (a->numel != b->numel)
+        {
+            return MATMUL_INCOMPATABLE_SHAPES;
+        }
+        ndim = 0;
+    }
+    else if (a->ndim == 1 && b->ndim == 2)
+    {
+        if (a->shape[0] != b->shape[0])
+        {
+            return MATMUL_INCOMPATABLE_SHAPES;
+        }
+        shape[0] = b->shape[1];
+        ndim = 1;
+    }
+    else if (a->ndim == 2 && b->ndim == 1)
+    {
+        if (a->shape[1] != b->shape[0])
+        {
+            return MATMUL_INCOMPATABLE_SHAPES;
+        }
+        shape[0] = a->shape[0];
+        ndim = 1;
+    }
+    else if (a->ndim == 2 && b->ndim == 2)
+    {
+        if (a->shape[1] != b->shape[0])
+        {
+            return MATMUL_INCOMPATABLE_SHAPES;
+        }
+        shape[0] = a->shape[0];
+        shape[1] = b->shape[1];
+        ndim = 2;
+    }
+    else
+    { // are shapes compatible.
+        long matrix_dims_a = a->ndim > 1 ? 2 : 1;
+        long matrix_dims_b = b->ndim > 1 ? 2 : 1;
+        long batch_dims_a = a->ndim - matrix_dims_a; // Number of non matrix dimensions in a
+        long batch_dims_b = b->ndim - matrix_dims_b; // Number of non-matrix dimensions in b
+
+        // matrix dimensions begin at batch_dims + 1
+        // if a.shape = [2,3,4,5,6]
+        // batch dims are [2,3,4] (batch_dim_a = 3)
+        // so matrix dims are [5,6], or shape[batch_dim_a] and shape[batch_dim_a+1].
+
+        if (matrix_dims_a == 1)
+        {
+            if (a->shape[batch_dims_a] != b->shape[batch_dims_b])
+            {
+                return MATMUL_INCOMPATABLE_SHAPES;
+            }
+        }
+        else
+        {
+            if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
+            {
+                return MATMUL_INCOMPATABLE_SHAPES;
+            }
+        }
+
+        long non_matrix_dims;
+        // Broadcast the non-matrx dimensions.
+        RETURN_IF_ERROR(TensorBase_get_broadcast_shape(a->shape, batch_dims_a, b->shape, batch_dims_b, shape, &non_matrix_dims));
+
+        ndim = non_matrix_dims;
+        if (matrix_dims_a == 1)
+        {
+            shape[non_matrix_dims] = b->shape[batch_dims_b + 1];
+            ndim += 1;
+        }
+        else if (matrix_dims_b == 1)
+        {
+            shape[non_matrix_dims] = a->shape[batch_dims_a];
+            ndim += 1;
+        }
+        else
+        {
+            shape[non_matrix_dims] = a->shape[batch_dims_a];
+            shape[non_matrix_dims + 1] = b->shape[batch_dims_b + 1];
+            ndim += 2;
+        }
+    }
+
+    for (long i = ndim; i < MAX_RANK; i++)
+    {
+        shape[i] = -1;
+    }
+
+    return TensorBase_init(out, shape, ndim);
+}

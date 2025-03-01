@@ -8,6 +8,7 @@
         "stdio.h": "c",
         "string.h": "c",
         "ios": "c",
-        "format": "c"
+        "format": "c",
+        "random": "c"
     }
 }
