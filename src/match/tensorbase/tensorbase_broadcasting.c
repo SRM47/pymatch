@@ -1,8 +1,3 @@
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
