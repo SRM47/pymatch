@@ -153,6 +153,12 @@ class TestTensorBase(BaseUnitTest):
             match_tensor, _ = self.generate_tensor_pair((2, 4))
             self.assertRaises(ValueError, lambda: match_tensor[:, 1::0])
 
+    def test_getitem_slice_and_index(self):
+        with self.subTest(msg="normal"):
+            match_tensor, torch_tensor = self.generate_tensor_pair((2, 3, 4, 5), fill_value=2)
+            print(match_tensor, torch_tensor)
+            self.almost_equal(match_tensor[0:1, 1, 1::2], torch_tensor[0:1, 1, 1::2])
+
     def test_getitem_reference(self):
         self.assertTrue(True)
 

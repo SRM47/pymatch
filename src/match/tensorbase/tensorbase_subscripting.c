@@ -104,7 +104,7 @@ static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
     return OK;
 }
 
-void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexArray coord)
+static void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexArray coord)
 {
     long dim = num_subscrtips - 1;
     // Find the right-most slice component to the key.
@@ -117,8 +117,13 @@ void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexAr
     coord[dim] += subscripts[dim].step;
     // If the new value is less than the stop value for that slice, return as normal.
     // If the new value is greater than or equal to the stop value for that slice, recursively increase the previous dimensions by the step slice.
-    while ((coord[dim] >= subscripts[dim].stop || subscripts[dim].type != SLICE) && dim >= 0)
+    while (dim >= 0 && coord[dim] >= subscripts[dim].stop)
     {
+        // If the current subscript type is an index, skip updating.
+        if (subscripts[dim].type == INDEX) {
+            dim--;
+            continue;
+        }
         // Reset the current dimension back to the start.
         coord[dim] = subscripts[dim].start;
         // Inspect the previous dimension.
