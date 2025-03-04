@@ -12,6 +12,8 @@
 #include <math.h>
 #include <string.h>
 
+// TODO: potentially rename tensorbase folder to c_backend, py_backend 
+// 
 /*********************************************************
  *                        GLOBALS                        *
  *********************************************************/

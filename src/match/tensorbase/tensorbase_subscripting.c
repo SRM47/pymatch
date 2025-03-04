@@ -1,27 +1,74 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-// Assumes that index is already a valid coordinate!
-// TODO: rename this method to be indicicative of what it does and split up this function
-StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
-                                           long num_subscripts,
-                                           ShapeArray tb_shape,
-                                           ShapeArray shape,
-                                           long *ndim)
+static StatusCode process_subscripts_for_indexing(SubscriptArray subscripts,
+                                                  long num_subscripts,
+                                                  ShapeArray original_shape)
 {
-    // Validate input parameters
-    if (!subscripts || !shape || !ndim || num_subscripts > MAX_RANK)
+    if (!subscripts || !original_shape)
+    {
+        return NULL_INPUT_ERR;
+    }
+    if (num_subscripts > MAX_RANK)
+    {
+        return NDIM_OUT_OF_BOUNDS;
+    }
+
+    long temporary_sub_ndim = 0;
+    for (long dim = 0; dim < num_subscripts; dim++)
+    {
+        TensorBaseSubscript sub = subscripts[dim];
+        long slice_start = sub.start;
+        long slice_stop = sub.stop;
+        long slice_step = sub.step;
+        switch (sub.type)
+        {
+        case INDEX:
+            if (slice_start < 0 || slice_start >= original_shape[dim])
+            {
+                return INDEX_OUT_OF_BOUNDS;
+            }
+            break;
+        case SLICE:
+            if (slice_start < 0 || slice_stop < 0 || slice_step <= 0 ||
+                slice_start >= original_shape[dim])
+            {
+                return STATUS_SUBSCRIPT_INVALID_PARAMETER;
+            }
+            break;
+        default:
+            return NULL_INPUT_ERR;
+        }
+    }
+
+    // Pad the subscript list with full slices to match the tensor's original dimensionality.
+    // Ensuring the length of the key equals the tensors dimensionality makes the `get` and `set` methods easier to implement.
+    for (long dim = num_subscripts; original_shape[dim] >= 0; dim++)
+    {
+        subscripts[dim] = (TensorBaseSubscript){SLICE, 0, original_shape[dim], 1};
+    }
+
+    return OK;
+}
+
+static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
+                                                  long original_ndim,
+                                                  ShapeArray original_shape,
+                                                  ShapeArray sub_shape,
+                                                  long *sub_ndim)
+{
+    // Assumes that the number of subscripts is equal to the original_ndim. One subscript for every dimension in the input tensor.
+    // Call `process_subscripts_for_indexing` prior to this method to ensure this is the case.
+
+    if (!subscripts || !original_shape || !sub_ndim)
     {
         return NULL_INPUT_ERR;
     }
 
-    long new_ndim = 0;
-    long i = 0;
-
-    // Process each subscript
-    for (; i < num_subscripts; i++)
+    long temporary_sub_ndim = 0;
+    for (long dim = 0; dim < original_ndim; dim++)
     {
-        TensorBaseSubscript *sub = subscripts + i;
+        TensorBaseSubscript *sub = subscripts + dim;
         long slice_start = sub->start;
         long slice_stop = sub->stop;
         long slice_step = sub->step;
@@ -30,60 +77,28 @@ StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
         switch (sub->type)
         {
         case INDEX:
-            // For index access, dimension is removed
-            // Validate the index is within bounds
-            if (slice_start < 0 || slice_start >= tb_shape[i])
-            {
-                return INDEX_OUT_OF_BOUNDS;
-            }
-            // Don't increment new_ndim as this dimension is eliminated
+            // For index access, dimension is removed. So, a new dimension isn't added to the new shape, and new_ndim isn't incremented.
             break;
-
         case SLICE:
-            // For slice access, calculate the new dimension size
-
-            // Validate slice parameters
-            if (slice_start < 0 || slice_stop < 0 || slice_step <= 0 ||
-                slice_start >= tb_shape[i])
-            {
-                return STATUS_SUBSCRIPT_INVALID_PARAMETER;
-            }
-
-            slice_stop = min_long(slice_stop, tb_shape[i]);
-
-            // Calculate the size of the resulting dimension
-            slice_size = (slice_stop - slice_start + slice_step - 1) / slice_step;
-
-            // Store the new dimension size
-            if (new_ndim >= MAX_RANK)
-            {
-                return NDIM_OUT_OF_BOUNDS;
-            }
-            shape[new_ndim] = slice_size;
-            new_ndim++;
+            // For slice access, add the correspoding dimension size to the shape at the current dimension, and incrment new_ndim.
+            // Clip the `stop` field to the size of the dimension.
+            slice_stop = min_long(slice_stop, original_shape[dim]);
             sub->stop = slice_stop;
+            // Calculate the size of the new dimension.
+            slice_size = (slice_stop - slice_start + slice_step - 1) / slice_step;
+            sub_shape[temporary_sub_ndim] = slice_size;
+            temporary_sub_ndim++;
             break;
         default:
             return NULL_INPUT_ERR;
         }
     }
 
-    // Add redundant slices to the list of subscripts so it has ndim slices.
-    while (tb_shape[i] >= 0) {
-        TensorBaseSubscript sub = {SLICE, 0, tb_shape[i], 1};
-        subscripts[i] = sub;
-        shape[new_ndim] = tb_shape[i];
-        new_ndim++;
-        i++;
-    }
+    *sub_ndim = temporary_sub_ndim;
 
-    // Update the number of dimensions
-    *ndim = new_ndim;
-
-    // Fill in the rest of the shape array
-    for (long i = new_ndim; i < MAX_RANK; i++)
+    for (long i = temporary_sub_ndim; i < MAX_RANK; i++)
     {
-        shape[i] = -1;
+        sub_shape[i] = -1;
     }
 
     return OK;
@@ -92,7 +107,7 @@ StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
 void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexArray coord)
 {
     long dim = num_subscrtips - 1;
-    // Find the right-most slice component to the key
+    // Find the right-most slice component to the key.
     while (subscripts[dim].type != SLICE)
     {
         dim--;
@@ -104,9 +119,9 @@ void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexAr
     // If the new value is greater than or equal to the stop value for that slice, recursively increase the previous dimensions by the step slice.
     while ((coord[dim] >= subscripts[dim].stop || subscripts[dim].type != SLICE) && dim >= 0)
     {
-        // Reset the current dimension back to the start
+        // Reset the current dimension back to the start.
         coord[dim] = subscripts[dim].start;
-        // Inspect the previous dimension
+        // Inspect the previous dimension.
         dim--;
         if (dim < 0)
         {
@@ -117,50 +132,39 @@ void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexAr
     }
 }
 
-// Returns an array of all of the indices in a TensorBase object to pull data from based on the subscripts.
-StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *out)
+StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *subtensor)
 {
-    // Calculate the resulting shape of the output array and initialize new data array with malloc
-    long new_ndim;
-    ShapeArray new_shape;
-    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
+    long subtensor_ndim;
+    ShapeArray subtensor_shape;
+    RETURN_IF_ERROR(process_subscripts_for_indexing(subscripts, num_subscripts, in->shape));
+    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, in->ndim, in->shape, subtensor_shape, &subtensor_ndim));
+    RETURN_IF_ERROR(TensorBase_init(subtensor, subtensor_shape, subtensor_ndim));
+
     num_subscripts = in->ndim;
-
-    print_long_list(new_shape, 8);
-
-    // Initialize the out tensorbase
-    RETURN_IF_ERROR(TensorBase_init(out, new_shape, new_ndim));
 
     IndexArray curr_index;
     memset(curr_index, 0, MAX_RANK * sizeof(long));
-    // Initialize curr_index to the starting position of all subscripts.
-    // By this point, there are in->ndim subscrtips;
-    for (long i = 0; i < num_subscripts; i++)
+    for (long i = 0; i < in->ndim; i++)
     {
         curr_index[i] = subscripts[i].start;
     }
-    print_long_list(curr_index, 8);
 
-    if (TensorBase_is_singleton(out))
+    if (TensorBase_is_singleton(subtensor))
     {
-        long in_data_index = 0;
+        long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
-        memcpy(&out->data, in->data + in_data_index, sizeof(scalar));
+        memcpy(&subtensor->data, in->data + in_data_index, sizeof(scalar));
         return OK;
     }
 
-    // Start increasing here and go down
-    long curr_dim = num_subscripts - 1;
-    long new_numel = out->numel;
-    scalar *new_data = out->data;
-    for (long out_data_index = 0; out_data_index < new_numel; out_data_index++)
+    long curr_dim = in->ndim - 1;
+    long subtensor_numel = subtensor->numel;
+    scalar *subtensor_data = subtensor->data;
+    for (long subtensor_data_index = 0; subtensor_data_index < subtensor_numel; subtensor_data_index++)
     {
-        // Convert index into data indices
         long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
-        new_data[out_data_index] = in->data[in_data_index];
-
-        // Update the curr_index Index array.
+        subtensor_data[subtensor_data_index] = in->data[in_data_index];
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 
@@ -169,16 +173,9 @@ StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_su
 
 StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long num_subscripts, scalar s)
 {
-    // Calculate the resulting shape of the output array and initialize new data array with malloc
-    long new_ndim;
-    ShapeArray new_shape;
-    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
-    num_subscripts = in->ndim;
-
-    long numel_to_set = 1;
-    for (long i = 0; i < new_ndim; i++)
+    if (in == NULL)
     {
-        numel_to_set *= new_shape[i];
+        return NULL_INPUT_ERR;
     }
 
     if (TensorBase_is_singleton(in))
@@ -187,76 +184,77 @@ StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long
         return OK;
     }
 
+    long subtensor_ndim;
+    ShapeArray subtensor_shape;
+    RETURN_IF_ERROR(process_subscripts_for_indexing(subscripts, num_subscripts, in->shape));
+    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, in->ndim, in->shape, subtensor_shape, &subtensor_ndim));
+
+    num_subscripts = in->ndim;
+
+    long subtensor_numel = 1;
+    for (long dim = 0; dim < subtensor_ndim; dim++)
+    {
+        subtensor_numel *= subtensor_shape[dim];
+    }
+
     IndexArray curr_index;
     memset(curr_index, 0, MAX_RANK * sizeof(long));
-    // Initialize curr_index to the starting position of all subscripts.
-    for (long i = 0; i < num_subscripts; i++)
+    for (long i = 0; i < in->ndim; i++)
     {
         curr_index[i] = subscripts[i].start;
     }
-    print_long_list(curr_index, 8);
 
-    // Start increasing here and go down
     long curr_dim = num_subscripts - 1;
     scalar *data = in->data;
-    for (long i = 0; i < numel_to_set; i++)
+    for (long i = 0; i < subtensor_numel; i++)
     {
-        // Convert index into data indices
         long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
         data[in_data_index] = s;
-
-        // Update the curr_index Index array.
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 
     return OK;
 }
 
-StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *t)
+StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *subtensor)
 {
-    // Calculate the resulting shape of the output array and initialize new data array with malloc
-    long new_ndim;
-    ShapeArray new_shape;
-    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, num_subscripts, in->shape, new_shape, &new_ndim));
-    num_subscripts = in->ndim;
+    long calculated_subtensor_ndim;
+    ShapeArray calculated_subtensor_shape;
+    RETURN_IF_ERROR(process_subscripts_for_indexing(subscripts, num_subscripts, in->shape));
+    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, in->ndim, in->shape, calculated_subtensor_shape, &calculated_subtensor_ndim));
 
-    // Verify that the shape from the subscripts (key) is the same as the tensorbase to set
-    if (!TensorBase_same_shape(new_shape, t->shape))
+    if (!TensorBase_same_shape(calculated_subtensor_shape, subtensor->shape))
     {
         return INVALID_SHAPES_FOR_SET;
     }
 
-    long numel_to_set = t->numel;
+    num_subscripts = in->ndim;
+    long subtensor_numel = subtensor->numel;
+
     IndexArray curr_index;
     memset(curr_index, 0, MAX_RANK * sizeof(long));
-    // Initialize curr_index to the starting position of all subscripts.
-    for (long i = 0; i < num_subscripts; i++)
+    for (long i = 0; i < in->ndim; i++)
     {
         curr_index[i] = subscripts[i].start;
     }
-    print_long_list(curr_index, 8);
 
-    if (TensorBase_is_singleton(t))
+    if (TensorBase_is_singleton(subtensor))
     {
-        long in_data_index = 0;
+        long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
-        memcpy(in->data + in_data_index, &t->data, sizeof(scalar));
+        memcpy(in->data + in_data_index, &subtensor->data, sizeof(scalar));
         return OK;
     }
 
-    // Start increasing here and go down
     long curr_dim = num_subscripts - 1;
     scalar *in_data = in->data;
-    scalar *out_data = t->data;
-    for (long i = 0; i < numel_to_set; i++)
+    scalar *subtensor_data = subtensor->data;
+    for (long subtensor_data_index = 0; subtensor_data_index < subtensor_numel; subtensor_data_index++)
     {
-        // Convert index into data indices
         long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
-        in_data[in_data_index] = out_data[i];
-
-        // Update the curr_index Index array.
+        in_data[in_data_index] = subtensor_data[subtensor_data_index];
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 

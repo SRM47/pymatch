@@ -9,6 +9,8 @@
         "string.h": "c",
         "ios": "c",
         "format": "c",
-        "random": "c"
+        "random": "c",
+        "complex": "c",
+        "__locale": "c"
     }
 }
