@@ -47,14 +47,14 @@ static StatusCode TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
     return OK;
 }
 
-static StatusCode TensorBase_convert_indices_to_data_index(TensorBase *in, IndexArray curr_index, long *index)
+static StatusCode TensorBase_convert_indices_to_data_index(TensorBase *in, IndexArray coord, long *data_index)
 {
-    long res = 0;
-    for (long i = 0; i < in->ndim; i++)
+    long temporary_index = 0;
+    for (long dim = 0; dim < in->ndim; dim++)
     {
-        res += in->strides[i] * curr_index[i];
+        temporary_index += in->strides[dim] * coord[dim];
     }
-    *index = res;
+    *data_index = temporary_index;
     return OK;
 }
 
@@ -413,7 +413,8 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
     return TensorBase_init(out, shape, ndim);
 }
 
-static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, StrideArray strides) {
+static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, StrideArray strides)
+{
     // `numel_for_strides` is calculated differently, multiplying only dimensions with sizes greater than zero.
     long numel_for_stride = 1;
     // This distinction is crucial for stride calculation. A dimension of size zero effectively has a stride of 1.
@@ -451,4 +452,33 @@ static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, Stri
     }
 
     return OK;
+}
+
+typedef struct
+{
+    scalar a;
+    scalar b;
+} randn_pair;
+
+// Box-Muller method for generating normally distributed random numbers.
+// https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform#C++
+static randn_pair randn(scalar mu, scalar sigma)
+{
+    scalar two_pi = 2.0 * M_PI;
+
+    scalar u1;
+    do
+    {
+        u1 = (scalar)rand() / (scalar)((unsigned)RAND_MAX + 1);
+    } while (u1 == 0);
+
+    scalar u2 = (scalar)rand() / (scalar)((unsigned)RAND_MAX + 1);
+
+    scalar mag = sigma * sqrt(-2.0 * log(u1));
+
+    randn_pair result = {0};
+    result.a = mag * cos(two_pi * u2) + mu;
+    result.b = mag * sin(two_pi * u2) + mu;
+
+    return result;
 }

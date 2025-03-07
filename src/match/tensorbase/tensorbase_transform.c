@@ -1,35 +1,6 @@
 #include "tensorbase.h"
 #include "tensorbase_util.c"
 
-typedef struct
-{
-    scalar a;
-    scalar b;
-} randn_pair;
-
-// Box-Muller method for generating normally distributed random numbers.
-// https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform#C++
-static randn_pair randn(scalar mu, scalar sigma)
-{
-    scalar two_pi = 2.0 * M_PI;
-
-    scalar u1;
-    do
-    {
-        u1 = (scalar)rand() / (scalar)((unsigned)RAND_MAX + 1);
-    } while (u1 == 0);
-
-    scalar u2 = (scalar)rand() / (scalar)((unsigned)RAND_MAX + 1);
-
-    scalar mag = sigma * sqrt(-2.0 * log(u1));
-
-    randn_pair result = {0};
-    result.a = mag * cos(two_pi * u2) + mu;
-    result.b = mag * sin(two_pi * u2) + mu;
-
-    return result;
-}
-
 StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim, TensorBase *out)
 {
     if (in == NULL || out == NULL)
