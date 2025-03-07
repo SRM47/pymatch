@@ -357,7 +357,13 @@ class TestTensorBase(BaseUnitTest):
 
     def test_transpose(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=2)
-        self.assertTrue(self.almost_equal(match_tensor.T, torch_tensor.T))
+        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1), fill_value=2)
+        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
+        match_tensor, torch_tensor = self.generate_tensor_pair((3,), fill_value=2)
+        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
+        match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=2)
+        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
 
     def test_permute(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=5)

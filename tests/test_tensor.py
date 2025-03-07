@@ -41,6 +41,51 @@ class TestTensor(BaseUnitTest):
 
         self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
 
+    def test_transpose_nd(self):
+        mat1, ten1 = self.generate_tensor_pair((5, 4, 3))
+
+        mat_res = mat1.T
+        ten_res = ten1.T
+        self.assertTrue(self.almost_equal(mat_res, ten_res))
+
+        # Use the mean to compute backward
+        mat_mean = mat_res.sum()
+        ten_mean = ten_res.sum()
+        mat_mean.backward()
+        ten_mean.backward()
+
+        self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
+    
+    def test_transpose_2d(self):
+        mat1, ten1 = self.generate_tensor_pair((5, 4))
+
+        mat_res = mat1.T
+        ten_res = ten1.T
+        self.assertTrue(self.almost_equal(mat_res, ten_res))
+
+        # Use the mean to compute backward
+        mat_mean = mat_res.sum()
+        ten_mean = ten_res.sum()
+        mat_mean.backward()
+        ten_mean.backward()
+
+        self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
+
+    def test_transpose_singleton(self):
+        mat1, ten1 = self.generate_tensor_pair(())
+
+        mat_res = mat1.T
+        ten_res = ten1.T
+        self.assertTrue(self.almost_equal(mat_res, ten_res))
+
+        # Use the mean to compute backward
+        mat_mean = mat_res.sum()
+        ten_mean = ten_res.sum()
+        mat_mean.backward()
+        ten_mean.backward()
+
+        self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
+
     def test_reshape(self):
         mat1, ten1 = self.generate_tensor_pair((5, 4, 3))
 

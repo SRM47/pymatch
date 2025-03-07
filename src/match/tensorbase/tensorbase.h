@@ -174,6 +174,8 @@ EXPORT StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_di
  *********************************************************/
 
 EXPORT StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim, TensorBase *out);
+EXPORT StatusCode TensorBase_transpose(TensorBase *in, TensorBase *out);
+
 
 EXPORT StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim);
 EXPORT StatusCode TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim);

@@ -79,6 +79,36 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
     return OK;
 }
 
+StatusCode TensorBase_transpose(TensorBase *in, TensorBase *out)
+{
+    if (in == NULL || out == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
+
+    long ndim = in->ndim;
+
+    if (ndim < 2)
+    {
+        // Transpose has no effect if the dimension of the tensor is less then two.
+        // Return a deepcopy of the current TensorBase.
+        return TensorBase_deepcopy(in, out);
+    }
+
+    // If the ndim is greater than or equal to two, the permutation will be to swap the last two dimensions.
+    IndexArray permutation;
+    memset(permutation, 0, MAX_RANK * sizeof(long));
+    for (long i = 0; i < ndim - 2; i++)
+    {
+        permutation[i] = i;
+    }
+    // Swap the last two dimensions.
+    permutation[ndim - 2] = ndim - 1;
+    permutation[ndim - 1] = ndim - 2;
+
+    return TensorBase_permute(in, permutation, ndim, out);
+}
+
 StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
 {
     if (in == NULL)

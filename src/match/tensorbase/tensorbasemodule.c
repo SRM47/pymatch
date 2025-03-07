@@ -214,7 +214,9 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"zero_", (PyCFunction)PyTensorBase_zero_, METH_NOARGS, "In-place zero."},
 
-    {"item", (PyCFunction)PyTensorBase_item, METH_NOARGS, "Transpose the array."},
+    {"item", (PyCFunction)PyTensorBase_item, METH_NOARGS, "Get the single element the array."},
+
+    {"transpose", (PyCFunction)PyTensorBase_transpose, METH_NOARGS, "Transpose the tensor."},
 
     // Methods with arguments.
     {"reshape_", (PyCFunction)PyTensorBase_reshape_, METH_O, "In-place reshape."},
@@ -233,7 +235,6 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
     {"unbroadcast", (PyCFunction)PyTensorBase_unbroadcast, METH_O, "Unbroadcast TensorBase."},
 
     {"permute", (PyCFunction)PyTensorBase_permute, METH_O, "Permute the dimensions of the array."},
-    {"transpose", (PyCFunction)PyTensorBase_transpose, METH_O, "Transpose the array."},
     {NULL} /* Sentinel */
 };
 
@@ -994,10 +995,48 @@ static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
     return (PyObject *)result;
 }
 
-static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args)
+static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *Py_UNUSED(args))
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_transpose is not implemented");
-    return NULL;
+    PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
+
+    TensorBase *in = &(((PyTensorBase *)self)->tb);
+    TensorBase *out = &(((PyTensorBase *)result)->tb);
+    
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create new TensorBase object.");
+        return NULL;
+    }
+
+    StatusCode status = TensorBase_transpose(in, out);
+    switch (status)
+    {
+    case OK:
+        break;
+    case NULL_INPUT_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
+        return NULL;
+    case NDIM_OUT_OF_BOUNDS:
+        PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
+        return NULL;
+    case INVALID_DIMENSION_SIZE:
+        PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
+        return NULL;
+    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+        PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
+        return NULL;
+    case MALLOC_ERR:
+        PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
+        return NULL;
+    case DUPLICATE_AGGREGATION_DIM:
+        PyErr_SetString(PyExc_RuntimeError, "Duplicate dimension provided in dims to aggregate over.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
+        return NULL;
+    }
+
+    return (PyObject *)result;
 }
 
 static PyObject *PyTensorBase_get_dim(PyTensorBase *self, PyObject *Py_UNUSED(ignored))

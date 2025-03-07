@@ -78,11 +78,11 @@ class Tensor:
     @property
     def T(self) -> Tensor:
         """Return a transposed version of this Tensor."""
-        result = Tensor(self.data.T, children=(self,))
+        result = Tensor(self.data.transpose(), children=(self,))
 
         def _gradient() -> None:
             info(f"Gradient of transpose. Shape: {self.shape}")
-            self.grad += result.grad.T
+            self.grad += result.grad.transpose()
 
         result._gradient = _gradient
         return result

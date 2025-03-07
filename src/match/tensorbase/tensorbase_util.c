@@ -482,3 +482,20 @@ static randn_pair randn(scalar mu, scalar sigma)
 
     return result;
 }
+
+static StatusCode TensorBase_deepcopy(TensorBase *in, TensorBase *out)
+{
+    if (in == NULL || out == NULL)
+    {
+        return NULL_INPUT_ERR;
+    }
+
+    RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
+
+    if (!TensorBase_is_singleton(in))
+    {
+        memcpy(out->data, in->data, in->numel * sizeof(scalar));
+    }
+
+    return OK;
+}
