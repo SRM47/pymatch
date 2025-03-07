@@ -51,29 +51,30 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
     ShapeArray permuted_shape;
     IndexArray seen_dimensions;
     memset(seen_dimensions, 0, sizeof(scalar) * MAX_RANK);
-    long dim = 0;
-    for (; dim < in->ndim; dim++)
+
+    for (long i = 0; i < in->ndim; i++)
     {
-        if (permutation[dim] < 0 || permutation[dim] >= in->ndim)
+        long dim = permutation[i];
+        if (dim < 0 || dim >= in->ndim)
         {
             return INVALID_DIMENSION;
         }
-        if (seen_dimensions[permutation[dim]] != 0)
+        if (seen_dimensions[dim] != 0)
         {
-            return PERMUTATION_DUPLICATE_DIM; // Duplicate
+            return PERMUTATION_DUPLICATE_DIM;
         }
-        seen_dimensions[permutation[dim]] = 1;
-        permuted_shape[dim] = in->shape[permutation[dim]];
+        seen_dimensions[dim] = 1;
+        permuted_shape[i] = in->shape[dim];
     }
 
-    RETURN_IF_ERROR(TensorBase_init(out, permuted_shape, in->ndim));
+    RETURN_IF_ERROR(TensorBase_init(out, permuted_shape, ndim));
 
     for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
     {
-        // For each element in the data index, calculate the corresponding
-        // element in each of the input tensors.
-        long out_data_index = 0;
+        // Map each input element to its output location, applying the permutation.
+        // Example: [3,4,5] with permutation (1,0,2) swaps the first two dimensions, e.g., (x,y,z) -> (y,x,z).
 
+        // Decompose the flat `in_data_index` into its corresponding multi-dimensional index into the `in` tensor.
         IndexArray in_coord;
         for (long dim = in->ndim - 1, temp = in_data_index; dim >= 0; dim--)
         {
@@ -81,10 +82,25 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
             temp /= in->shape[dim];
         }
 
+        // Shift the dimensions of the input coordinate to obtain the permuted coordinate in the out tensor.
+        IndexArray out_coord;
         for (long out_dim = 0; out_dim < out->ndim; out_dim++)
         {
-            out_data_index += out->strides[out_dim] * in_coord[permutation[out_dim]];
+            out_coord[out_dim] = in_coord[permutation[out_dim]];
         }
+
+        long out_data_index = 0;
+        for (long out_dim = 0; out_dim < out->ndim; out_dim++)
+        {
+            out_data_index += out->strides[out_dim] * out_coord[out_dim];
+        }
+
+        // Or...just this. I leave this to the reader to figure out how this works.
+        // long out_data_index = 0;
+        // for (long out_dim = 0; out_dim < out->ndim; out_dim++)
+        // {
+        //     out_data_index += out->strides[out_dim] * in_coord[permutation[out_dim]];
+        // }
 
         out->data[out_data_index] = in->data[in_data_index];
     }
@@ -94,8 +110,6 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
 
 StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndim)
 {
-    // Does not do validation of shape array
-    // assumes ndim is the rank of shape
     if (in == NULL)
     {
         return NULL_INPUT_ERR;
@@ -106,54 +120,29 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
         return NDIM_OUT_OF_BOUNDS;
     }
 
-    long numel_for_stride = 1;
-    long numel = 1;
-    for (int i = 0; i < ndim; i++)
+    // Verify that the new shape is valid by comparing the number of elements in the existing and new shapes.
+    long temp_numel = 1;
+    for (long dim = 0; dim < ndim; dim++)
     {
-        long dim = shape[i];
-        if (dim < 0)
+        if (shape[dim] < 0)
         {
-            // All dimensions must be >= 0 (-1 indicates no-dimension).
-            return INVALID_DIMENSION;
+            return INVALID_DIMENSION_SIZE;
         }
-        numel *= dim;
-        if (dim > 0)
-        {
-            numel_for_stride *= dim;
-        }
+        temp_numel *= shape[dim];
     }
-
-    if (numel != in->numel)
+    if (temp_numel != in->numel)
     {
         return RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH;
     }
 
-    // Calculate if the input tensor is singleton before changing internal metadata.
-    int is_singleton = TensorBase_is_singleton(in);
+    // Calculate Strides of the tensor.
+    StrideArray strides;
+    RETURN_IF_ERROR(calculate_strides_from_shape(shape, ndim, strides));
 
-    // Calculate Tensorbase strides.
-    in->ndim = ndim;
-    long stride = numel_for_stride;
-    long i = 0;
-    for (; i < ndim; i++)
-    {
-        long dim = shape[i];
-        if (dim > 0)
-        {
-            stride /= dim;
-        }
-        in->strides[i] = stride;
-        in->shape[i] = dim;
-    }
-    for (; i < MAX_RANK; i++)
-    {
-        in->strides[i] = 0;
-        in->shape[i] = -1;
-    }
-
-    // Must handle special case for singleton objects.
-    // Singleton -> nd. must allocate memory for the one element in the nd array
-    if (is_singleton)
+    // There is a special case for singleton tensors.
+    // If a singleton is reshaped into an n-dimensional tensor with a single element,
+    // we must allocate memory on the heap for a single element.
+    if (TensorBase_is_singleton(in))
     {
         if (ndim > 0)
         {
@@ -169,31 +158,31 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
             in->data = new_data_region;
         }
     }
-    // nd -> singleton. must free memory and place the singleton value in the pointer.
     else
     {
-        // By this point, if ndim is 0, the bew shape will be a singleton and all the checks wouldv'e been verified.
-        // this is just copying the data.
+        // If an n-dimensional tensor with a single element was reshaped into a singleton,
+        // we must deallocate memory on the heap and store the original element in the pointer value.
         if (ndim == 0)
         {
-            // also note that the fact that the singleton data isnt just a one element array meas that it's hard now to share data
-            // we lose that functionality for better locality and fewer allocations.
-            // Get the single value from the nd tensor
+            // Get the single value from the n-dimensional tensor.
             scalar value = *in->data;
-            // Free the memory
+            // Free the memory.
             free(in->data);
-            // Copy the memory bits from the scalar into the in->data pointer
+            // Copy the memory bits from the scalar into the in->data pointer/
             memcpy(&(in->data), &value, sizeof(scalar));
         }
     }
+
+    // Update the Shape, Strides and ndim inplace.
+    memcpy(in->strides, strides, MAX_RANK * sizeof(long));
+    memcpy(in->shape, shape, MAX_RANK * sizeof(long));
+    in->ndim = ndim;
 
     return OK;
 }
 
 StatusCode TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
 {
-    // Does not do validation of shape array
-    // assumes ndim is the rank of shape
     if (in == NULL || out == NULL)
     {
         return NULL_INPUT_ERR;
@@ -204,8 +193,6 @@ StatusCode TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape,
         return NDIM_OUT_OF_BOUNDS;
     }
 
-    // will not share data memory (data pointers point to the same data) or else we'd have to implement reference counting of the data element
-    // well call this a limitation of the system
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
 
     // must also copy the data over if not a single object.
@@ -235,7 +222,6 @@ StatusCode TensorBase_fill_(TensorBase *in, scalar fill_value)
         return NULL_INPUT_ERR;
     }
 
-    // Don't use memset for doubles/floats. Only for chars.
     for (long i = 0; i < in->numel; i++)
     {
         in->data[i] = fill_value;
@@ -250,14 +236,14 @@ StatusCode TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
     {
         return NULL_INPUT_ERR;
     }
-    // Assumes tensor is already initialized. Just filling the data with random, normallu distributed values.
+
     if (TensorBase_is_singleton(in))
     {
         randn_pair pair = randn(mu, sigma);
         memcpy(&in->data, &pair.a, sizeof(scalar));
         return OK;
     }
-
+    // Assumes tensor is already initialized with a valid `data` pointer.
     scalar *data = in->data;
     for (long index = 0; index < in->numel; index += 2)
     {

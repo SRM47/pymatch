@@ -412,3 +412,43 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
 
     return TensorBase_init(out, shape, ndim);
 }
+
+static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, StrideArray strides) {
+    // `numel_for_strides` is calculated differently, multiplying only dimensions with sizes greater than zero.
+    long numel_for_stride = 1;
+    // This distinction is crucial for stride calculation. A dimension of size zero effectively has a stride of 1.
+    // To simplify stride computations, we use `numel_for_strides` which treats zero-sized dimensions as contributing a multiplicative factor of 1, rather than 0.
+    for (int dim = 0; dim < ndim; dim++)
+    {
+        long dimension_size = shape[dim];
+        if (dimension_size < 0)
+        {
+            return INVALID_DIMENSION_SIZE;
+        }
+        if (dimension_size > 0)
+        {
+            numel_for_stride *= dimension_size;
+        }
+    }
+
+    // Calculate strides.
+    // Strides tell you how many elements you need to skip in memory to move to the next element along a specific dimension.
+    // For instance, suppose a tensor with a shape [2,3,4], the strides array will be [12, 4, 1].
+    // * The stride of the first dimension (2), is the number of elements (in memory) between [0,0,0] and [1,0,0], which is 12.
+    // * The stride of the second dimension (3), is the number of elements (in memory) between [0,1,0] and [0,1,0], which is 4.
+    // * The stride of the third (last) dimension (4), is the number of elements (in memory) between [0,0,0] and [0,0,1], which is 1.
+    // Computationally, the stride at a specific dimension is the product of all latter dimensions.
+    memset(strides, 0, MAX_RANK * sizeof(long)); // Initialize strides to 0.
+    long stride = numel_for_stride;              // Start with total element count (excluding zero-sized dims).
+    for (long dim = 0; dim < ndim; dim++)
+    {
+        long dimension_size = shape[dim];
+        if (dimension_size > 0)
+        {
+            stride /= dimension_size;
+        }
+        strides[dim] = stride;
+    }
+
+    return OK;
+}
