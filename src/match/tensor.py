@@ -387,6 +387,16 @@ class Tensor:
         result._gradient = _gradient
         return result
 
+    def log(self) -> Tensor:
+        """Performs element-wise log"""
+        result: Tensor = Tensor(self.data.log(), children=(self,))
+
+        def _gradient() -> None:
+            self.grad += (1/self.data) * result.grad
+
+        result._gradient = _gradient
+        return result
+
     def var(
         self, dim: tuple | int = None, correction=1, keepdims: bool = False
     ) -> Tensor:

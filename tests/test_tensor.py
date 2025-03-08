@@ -5,6 +5,7 @@ import numpy as np
 import random
 from .base import BaseUnitTest
 
+
 class TestTensor(BaseUnitTest):
     def test_dim(self):
         for shape in [(), (7,), (4, 3), (6, 1, 3), (1, 1, 1)]:
@@ -26,6 +27,21 @@ class TestTensor(BaseUnitTest):
 
         self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
 
+    def test_log(self):
+        mat1, ten1 = self.generate_tensor_pair((5, 4, 3))
+
+        mat_res = mat1.log()
+        ten_res = ten1.log()
+        self.assertTrue(self.almost_equal(mat_res, ten_res, equal_nan=True))
+
+        # Use the mean to compute backward
+        mat_mean = mat_res.sum()
+        ten_mean = ten_res.sum()
+        mat_mean.backward()
+        ten_mean.backward()
+
+        self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True, equal_nan=True))
+
     def test_permute(self):
         mat1, ten1 = self.generate_tensor_pair((5, 4, 3))
 
@@ -46,7 +62,7 @@ class TestTensor(BaseUnitTest):
 
         mat_res = mat1.T
         ten_res = ten1.T
-        
+
         self.assertTrue(self.almost_equal(mat_res, ten_res))
 
         # Use the mean to compute backward
@@ -56,7 +72,7 @@ class TestTensor(BaseUnitTest):
         ten_mean.backward()
 
         self.assertTrue(self.almost_equal(mat1, ten1, check_grad=True))
-    
+
     def test_transpose_2d(self):
         mat1, ten1 = self.generate_tensor_pair((5, 4))
 
