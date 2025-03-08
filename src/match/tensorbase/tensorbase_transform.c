@@ -88,23 +88,12 @@ StatusCode TensorBase_transpose(TensorBase *in, TensorBase *out)
 
     long ndim = in->ndim;
 
-    if (ndim < 2)
-    {
-        // Transpose has no effect if the dimension of the tensor is less then two.
-        // Return a deepcopy of the current TensorBase.
-        return TensorBase_deepcopy(in, out);
-    }
-
-    // If the ndim is greater than or equal to two, the permutation will be to swap the last two dimensions.
     IndexArray permutation;
     memset(permutation, 0, MAX_RANK * sizeof(long));
-    for (long i = 0; i < ndim - 2; i++)
+    for (long i = 0; i < ndim; i++)
     {
-        permutation[i] = i;
+        permutation[i] = ndim-i-1;
     }
-    // Swap the last two dimensions.
-    permutation[ndim - 2] = ndim - 1;
-    permutation[ndim - 1] = ndim - 2;
 
     return TensorBase_permute(in, permutation, ndim, out);
 }
