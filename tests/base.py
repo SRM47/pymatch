@@ -39,10 +39,12 @@ class BaseUnitTest(unittest.TestCase):
         if t.ndim == 1:
             m.squeeze_()
 
-        is_close = torch.allclose(m, t, rtol=1e-02, atol=1e-05)
-        if debug and not is_close:
+        if debug:
             print("match", m)
             print("tensor", t)
+
+        is_close = torch.allclose(m, t, rtol=1e-02, atol=1e-05)
+        
         return is_close
 
     def to_tensor(
@@ -89,7 +91,7 @@ class BaseUnitTest(unittest.TestCase):
         Returns:
             match.Tensor, torch.Tensor: The random tensor tuple
         """
-        if not shape:
+        if shape is None:
             dim = random.randint(2, 5)
             shape = tuple(random.randint(1, 5) for _ in range(dim))
 

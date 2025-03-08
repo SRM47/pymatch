@@ -34,9 +34,9 @@ def cat(tensors: list[Tensor], dim=0) -> Tensor:
 
 
 def randn(*shape, generator=lambda: gauss(0, 1)) -> Tensor:
-    if isinstance(shape[0], tuple):
+    if shape != () and isinstance(shape[0], tuple):
         shape = shape[0]
-    
+
     t = TensorBase(shape)
     t.randn_(0, 1)
     return Tensor(data=t)

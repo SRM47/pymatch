@@ -46,6 +46,7 @@ class TestTensor(BaseUnitTest):
 
         mat_res = mat1.T
         ten_res = ten1.T
+        
         self.assertTrue(self.almost_equal(mat_res, ten_res))
 
         # Use the mean to compute backward
@@ -61,6 +62,7 @@ class TestTensor(BaseUnitTest):
 
         mat_res = mat1.T
         ten_res = ten1.T
+
         self.assertTrue(self.almost_equal(mat_res, ten_res))
 
         # Use the mean to compute backward

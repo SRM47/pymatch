@@ -28,7 +28,7 @@ class TestTensorBase(BaseUnitTest):
         torch_tensor.requires_grad = False
         return torch_tensor
 
-    def generate_tensor_pair(self, shape: tuple[int] = None, fill_value=0):
+    def generate_tensor_pair(self, shape: tuple[int] = None, fill_value=None):
         """Generates a random TensorBase and its PyTorch equivalent.
 
         Args:
@@ -38,13 +38,14 @@ class TestTensorBase(BaseUnitTest):
             match.TensorBase, torch.Tensor: The random tensor tuple
         """
         mat = TensorBase(shape)
-        mat.fill_(fill_value)
+        if fill_value is None:
+            mat.randn_(0, 5)
+        else:
+            mat.fill_(fill_value)
         ten = self.to_tensor(mat)
         return mat, ten
 
     def almost_equal(self, match_tensorbase, torch_tensor, equal_nan=False) -> bool:
-        print(match_tensorbase)
-        print(torch_tensor)
         self.assertTrue(
             torch.allclose(
                 self.to_tensor(match_tensorbase),
@@ -155,7 +156,9 @@ class TestTensorBase(BaseUnitTest):
 
     def test_getitem_slice_and_index(self):
         with self.subTest(msg="normal"):
-            match_tensor, torch_tensor = self.generate_tensor_pair((2, 3, 4, 5), fill_value=2)
+            match_tensor, torch_tensor = self.generate_tensor_pair(
+                (2, 3, 4, 5), fill_value=2
+            )
             print(match_tensor, torch_tensor)
             self.almost_equal(match_tensor[0:1, 1, 1::2], torch_tensor[0:1, 1, 1::2])
 
@@ -356,14 +359,14 @@ class TestTensorBase(BaseUnitTest):
                 )
 
     def test_transpose(self):
-        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=2)
-        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
-        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1), fill_value=2)
-        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
-        match_tensor, torch_tensor = self.generate_tensor_pair((3,), fill_value=2)
-        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 4, 2))
+        self.almost_equal(match_tensor.transpose(), torch_tensor.T)
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 2))
+        self.almost_equal(match_tensor.transpose(), torch_tensor.T)
+        match_tensor, torch_tensor = self.generate_tensor_pair((5,), fill_value=2)
+        self.almost_equal(match_tensor.transpose(), torch_tensor.T)
         match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=2)
-        self.assertTrue(self.almost_equal(match_tensor.transpose(), torch_tensor.T))
+        self.almost_equal(match_tensor.transpose(), torch_tensor.T)
 
     def test_permute(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=5)
@@ -517,7 +520,7 @@ class TestTensorBase(BaseUnitTest):
 
             with self.subTest(msg="decimal_exponent"):
                 self.almost_equal(match_tensorbase**0.5, torch_tensor**0.5)
-            
+
             with self.subTest(msg="negative_decimal_exponent"):
                 self.almost_equal(match_tensorbase**-0.5, torch_tensor**-0.5)
 
@@ -530,12 +533,16 @@ class TestTensorBase(BaseUnitTest):
 
             with self.subTest(msg="negative_exponent"):
                 self.almost_equal(match_tensorbase**-1, torch_tensor**-1)
-            
+
             with self.subTest(msg="decimal_exponent"):
-                self.almost_equal(match_tensorbase**0.5, torch_tensor**0.5, equal_nan = True)
+                self.almost_equal(
+                    match_tensorbase**0.5, torch_tensor**0.5, equal_nan=True
+                )
 
             with self.subTest(msg="negative_decimal_exponent"):
-                self.almost_equal(match_tensorbase**-0.5, torch_tensor**-0.5, equal_nan = True)
+                self.almost_equal(
+                    match_tensorbase**-0.5, torch_tensor**-0.5, equal_nan=True
+                )
 
     def test_fill(self):
         match_tensorbase, torch_tensor = self.generate_tensor_pair(
