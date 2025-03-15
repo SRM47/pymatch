@@ -41,6 +41,9 @@ class Module:
 
         Collect all parameters by searching attributes for Module objects via a DFS to account for nested parameters.
         """
+        if hasattr(self, '_params'):
+            return self._params
+        
         params = []
         seen_ids = set()
         stack = [self]
@@ -85,10 +88,11 @@ class Module:
 
                     elif isinstance(attr, dict):
                         stack.extend(attr.values())
-
+        self._params = params
         return params
 
     def zero_grad(self) -> None:
         """Set gradients for all parameters to zero."""
         for param in self.parameters():
-            param.grad.zeros_()
+            # param.grad.zero_()
+            param.grad.fill_(0)

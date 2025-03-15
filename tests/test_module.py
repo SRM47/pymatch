@@ -84,3 +84,19 @@ class TestModule(BaseUnitTest):
                 self.w2 = param2
 
         self.assertCountEqual(MatchNetwork().parameters(), [param1, param2])
+    
+    def test_module_parameter_caching(self):
+        class MatchNetwork(match.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.w1 = randn(1)
+                self.w2 = randn(2)
+        test_model = MatchNetwork()
+        self.assertFalse(hasattr(test_model, "_params"))
+        test_parameters = test_model.parameters()
+        self.assertTrue(hasattr(test_model, "_params"))
+        self.assertCountEqual(test_parameters, test_model._params)
+        self.assertCountEqual(test_parameters, test_model.parameters())
+        
+        
+
