@@ -21,6 +21,7 @@ class BaseUnitTest(unittest.TestCase):
         pytorch_tensor: torch.Tensor,
         check_grad: bool = False,
         debug: bool = True,
+        equal_nan: bool = False
     ) -> bool:
         """Compares the custom tensor implementation to Pytorch's tensor implementation.
 
@@ -43,7 +44,7 @@ class BaseUnitTest(unittest.TestCase):
             print("match", m)
             print("tensor", t)
 
-        is_close = torch.allclose(m, t, rtol=1e-02, atol=1e-05)
+        is_close = torch.allclose(m, t, rtol=1e-02, atol=1e-05, equal_nan = equal_nan)
         
         return is_close
 
