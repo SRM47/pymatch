@@ -12,7 +12,7 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm, trange
 
 """
-Make a Tensor/Iterable/Numpy array to Tensorbase
+Make a way to convert torch tensor to match tensor. 
 Make Optimizer
 Make Dataloader
 Implement Conv2d in C
@@ -75,7 +75,6 @@ def to_tensor(match_tensor) -> torch.Tensor:
     return torch_tensor
 
 
-# TODO: Make this cleaner
 def data_to_match_tensor(data, p=1):
     assert p > 0 and p <= 1
     total_instances = data.data.shape[0]
