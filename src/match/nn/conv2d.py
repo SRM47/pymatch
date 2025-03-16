@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import match
-
+from match import Tensor
 from math import prod
-from match import Tensor, TensorData
 from .module import Module
 
 
@@ -77,7 +75,7 @@ class Conv2d(Module):
         # another data structure that stores each 3D kernel individually.
         # Each column represents a single kernel, resulting in out_channels columns.
         # The number of rows corresponds to the total number of elements in each kernel.
-        self._trainable_kernels: Tensor = Tensor.randn(
+        self._trainable_kernels: Tensor = match.randn(
             prod(self._single_kernel_shape), self.out_channels
         )
 

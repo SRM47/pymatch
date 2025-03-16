@@ -1,11 +1,6 @@
-from math import prod
-import unittest
 import torch
+from match import tensor
 from match.nn import Conv2d
-from match import tensordata, tensor, randn, use_numpy
-import itertools
-import numpy as np
-import random
 from .base import BaseUnitTest
 
 
