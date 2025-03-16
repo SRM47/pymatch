@@ -1,17 +1,13 @@
-"""Pytorch Remake
-"""
-
-from math import prod
+from .config import BackendOption, backend_option
 from random import gauss
-from .tensor import Tensor, use_numpy
-import numpy as np
+from .tensor import Tensor
 
-if use_numpy:
-    from .tensordata_numpy import TensorData
-else:
-    from .tensordata import TensorData
-
-from match.tensorbase import TensorBase
+if backend_option == BackendOption.C_EXTENSION:
+    from match.tensorbase import TensorBase
+elif backend_option == BackendOption.PYTHON:
+    from .tensorbase_python import TensorBase
+elif backend_option == BackendOption.NUMPY:
+    from .tensorbase_numpy import TensorBase
 
 
 def cat(tensors: list[Tensor], dim=0) -> Tensor:
@@ -24,13 +20,13 @@ def cat(tensors: list[Tensor], dim=0) -> Tensor:
     Returns:
         Tensor: _description_
     """
-    # Store the underlying TensorData objects.
-    tensordata_objects = [tensor.data for tensor in tensors]
-    # Concatenate the TensorData objects into a single object.
-    concatenated_tensordata_objects = TensorData.concatenate(
-        tensordatas=tensordata_objects, dim=dim
+    # Store the underlying TensorBase objects.
+    TensorBase_objects = [tensor.data for tensor in tensors]
+    # Concatenate the TensorBase objects into a single object.
+    concatenated_TensorBase_objects = TensorBase.concatenate(
+        TensorBases=TensorBase_objects, dim=dim
     )
-    return Tensor(data=concatenated_tensordata_objects)
+    return Tensor(data=concatenated_TensorBase_objects)
 
 
 def randn(*shape, generator=lambda: gauss(0, 1)) -> Tensor:

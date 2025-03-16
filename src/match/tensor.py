@@ -1,21 +1,16 @@
 from __future__ import annotations
 
 from logging import info
-from math import prod
-from random import gauss
-from typing import Callable, List, Set
-import numpy as np
-from match.tensorbase import TensorBase
-from icecream import ic
+from typing import Callable, Set
 
-use_numpy = False  # False to use the python implementation of TensorBase.
+from .config import BackendOption, backend_option
 
-# if use_numpy:
-#     from .TensorBase_numpy import TensorBase
-# else:
-#     from .TensorBase import TensorBase
-
-LOG = True
+if backend_option == BackendOption.C_EXTENSION:
+    from match.tensorbase import TensorBase
+elif backend_option == BackendOption.PYTHON:
+    from .tensorbase_python import TensorBase
+elif backend_option == BackendOption.NUMPY:
+    from .tensorbase_numpy import TensorBase
 
 
 class Tensor:

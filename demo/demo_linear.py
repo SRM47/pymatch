@@ -21,7 +21,6 @@ implement testing
 Implement shuffle
 Implement some sort of benchmarking/performance tests
 """
-use_torch = False
 
 
 class IrisClassifierMatch(match.nn.Module):

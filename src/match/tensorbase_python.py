@@ -17,20 +17,20 @@ from .util import (
 import numpy as np
 
 
-class TensorData:
+class TensorBase:
     """A storage and arithmetic object for n-dimensional tensor.
 
-    The TensorData class provides a basic implementation for storing and performing
+    The TensorBase class provides a basic implementation for storing and performing
     operations on  n-dimensional tensors. While not optimized for performance, it's
     useful for understanding fundamental tensor concepts.
 
-    TensorData objects are recursive:
-        Leaf Nodes: A TensorData object can hold a single value, accessible via .item().
-        Internal Nodes: A TensorData object can hold a list of other Leaf TensorData
+    TensorBase objects are recursive:
+        Leaf Nodes: A TensorBase object can hold a single value, accessible via .item().
+        Internal Nodes: A TensorBase object can hold a list of other Leaf TensorBase
         objects, allowing the representation of multi-dimensional tensors.
 
     Accessing Elements
-    Use standard coordinate notation to retrieve data (e.g., x[1, 3, 2]). The TensorData
+    Use standard coordinate notation to retrieve data (e.g., x[1, 3, 2]). The TensorBase
     class internally translates these coordinates into the correct index within its data list.
     """
 
@@ -39,7 +39,7 @@ class TensorData:
         *size: int,
         value: float = 0.0,
     ) -> None:
-        """Create a new TensorData object to store an n-dimensional tensor of values.
+        """Create a new TensorBase object to store an n-dimensional tensor of values.
 
         Args:
             size (tuple[int]): The shape of the Tensor
@@ -58,7 +58,7 @@ class TensorData:
         self.__initialize_strides()
 
     @staticmethod
-    def create_tensor_from_data(data: list, shape: tuple) -> TensorData:
+    def create_tensor_from_data(data: list, shape: tuple) -> TensorBase:
         """_summary_
 
         Args:
@@ -66,15 +66,15 @@ class TensorData:
             shape (tuple): _description_
 
         Returns:
-            TensorData: _description_
+            TensorBase: _description_
         """
-        new_tensor = TensorData()
+        new_tensor = TensorBase()
         new_tensor._data = data
         new_tensor.reshape_(shape)
         return new_tensor
 
     def __initialize_tensor_data(self, value) -> None:
-        """Helper method that initializes all the values in the TensorData object.
+        """Helper method that initializes all the values in the TensorBase object.
 
         Args:
             value (Number): The numerical value the tensor will be initialized to.
@@ -83,17 +83,17 @@ class TensorData:
             # Case 1: Tensor has a defined shape (not a single value).
             self._item = None  # Indicate this node doesn't store a single value.
 
-            # Create a list containing child TensorData objects. The total number of
+            # Create a list containing child TensorBase objects. The total number of
             # child nodes is the product of shape dimensions. Each child node is
             # initialized with the provided 'value'.
-            self._data = [TensorData(value=value) for _ in range(prod(self.shape))]
+            self._data = [TensorBase(value=value) for _ in range(prod(self.shape))]
         else:
             # Case 2: Tensor represents a single value.
             self._item = value  # Store the value directly.
             self._data = None  # Indicate there's no list of child nodes.
 
     def __initialize_strides(self) -> None:
-        """Initializes the strides of the dimensions of the TensorData.
+        """Initializes the strides of the dimensions of the TensorBase.
 
         The stride of a dimension is the number of elements to skip in
         order to access the next element in that dimension. For instance,
@@ -103,7 +103,7 @@ class TensorData:
         between [0,0,0] and [0,1,0], and so on. Computationally, the
         stride of a dimension is the product of all following dimensions.
 
-        For example, if the shape of the TensorData object was (3,2,3),
+        For example, if the shape of the TensorBase object was (3,2,3),
         the desired tuple of strides would be (6,3,1).
 
         See `__multi_to_single_rank_translation` for example stride usage.
@@ -129,7 +129,7 @@ class TensorData:
 
     def __out_of_bounds_coords(self, coords: tuple[int]):
         """Helper method that checks if a set of coordinates is out of bounds of the
-        shape of the TensorData object.
+        shape of the TensorBase object.
 
         Raises:
             IndexError: raises index error if the number of dimensions so not match the
@@ -180,11 +180,11 @@ class TensorData:
         return int(sum(dim * stride for dim, stride in zip(coords, self._strides)))
 
     def item(self) -> int | float:
-        """Returns the item of a singleton, or single element TensorData object.
+        """Returns the item of a singleton, or single element TensorBase object.
 
         Raises:
             ValueError: raises value error if attempting to access the item of a
-            TensorData object with more than one element.
+            TensorBase object with more than one element.
         """
         if self._item != None:
             return self._item
@@ -195,7 +195,7 @@ class TensorData:
         )
 
     def reshape_(self, shape: tuple):
-        """Helper method to reshape the TensorData object inplace, without changing the data.
+        """Helper method to reshape the TensorBase object inplace, without changing the data.
 
         Args:
             shape (tuple): The shape to change to.
@@ -213,7 +213,7 @@ class TensorData:
             if shape != (1,):
                 raise RuntimeError(f"shape {shape} is invalid for input of size 1")
             self.shape = (1,)
-            self._data = [TensorData(value=self._item)]
+            self._data = [TensorBase(value=self._item)]
             self._item = None
         # Reshape a 1D Tensor into a singleton where shape = ().
         elif len(self._data) == 1 and not shape:
@@ -230,8 +230,8 @@ class TensorData:
         # The strides change when the shape does, so they must be reinitialized.
         self.__initialize_strides()
 
-    def reshape(self, shape: tuple) -> TensorData:
-        """Helper method to reshape and return a new TensorData object without changing the data.
+    def reshape(self, shape: tuple) -> TensorBase:
+        """Helper method to reshape and return a new TensorBase object without changing the data.
 
         Args:
             shape (tuple): The shape of the new tensor
@@ -241,22 +241,22 @@ class TensorData:
             the new shape is not equal to the existing number of elements.
 
         Returns:
-            TensorData: The new tensor with a shallow copy of the data, but the new shape
+            TensorBase: The new tensor with a shallow copy of the data, but the new shape
         """
-        # Reshape a singleton into a 1D, single-element TensorData.
+        # Reshape a singleton into a 1D, single-element TensorBase.
         if self._data is None:
             if shape != (1,):
                 raise RuntimeError(f"shape {shape} is invalid for input of size 1")
-            new_tensor = TensorData(1)
+            new_tensor = TensorBase(1)
             new_tensor._data[0] = self
             return new_tensor
 
-        # Reshape a single-element TensorData into a singleton.
+        # Reshape a single-element TensorBase into a singleton.
         if len(self._data) == 1 and not shape:
             return self._data[0]
 
         # Create a new tensor from specified data and shape.
-        return TensorData.create_tensor_from_data(self._data, shape)
+        return TensorBase.create_tensor_from_data(self._data, shape)
 
     def __convert_slice_to_index_list(self, coordinates):
         """Converts a list of slices or integers to a list of possible indices for each dimension.
@@ -343,9 +343,9 @@ class TensorData:
         ]
 
         # Create a new tensor from the retrieved data and shape.
-        return TensorData.create_tensor_from_data(output_data, output_shape)
+        return TensorBase.create_tensor_from_data(output_data, output_shape)
 
-    def __setitem__(self, coordinates: tuple, value: TensorData | int | float) -> None:
+    def __setitem__(self, coordinates: tuple, value: TensorBase | int | float) -> None:
         """Sets the value of a subtensor at the given coordinates.
 
         Args:
@@ -355,9 +355,9 @@ class TensorData:
         Raises:
             TypeError: If the value is a list or an invalid type.
         """
-        # Ensure the value is not a list, as lists cannot be assigned directly to TensorData.
+        # Ensure the value is not a list, as lists cannot be assigned directly to TensorBase.
         if isinstance(value, list):
-            raise TypeError("Lists cannot be assigned to a TensorData.")
+            raise TypeError("Lists cannot be assigned to a TensorBase.")
 
         # Ensure coordinates is a tuple, even if it's a single integer.
         if not isinstance(coordinates, tuple):
@@ -370,7 +370,7 @@ class TensorData:
             # If output_shape is empty, it means only one item should be set.
             self.__out_of_bounds_coords(coordinates)
             # Assign the value to the appropriate location.
-            if isinstance(value, TensorData):
+            if isinstance(value, TensorBase):
                 self._data[
                     self.__multi_to_single_rank_translation(coordinates)
                 ]._item = value.item()
@@ -379,7 +379,7 @@ class TensorData:
                     self.__multi_to_single_rank_translation(coordinates)
                 ]._item = value
             else:
-                raise TypeError("Invalid type to set value in TensorData.")
+                raise TypeError("Invalid type to set value in TensorBase.")
         else:
             # If output_shape is not empty, it means multiple items should be set.
             if isinstance(value, (int, float)):
@@ -389,12 +389,12 @@ class TensorData:
                     self._data[self.__multi_to_single_rank_translation(index)]._item = (
                         value
                     )
-            elif isinstance(value, TensorData):
+            elif isinstance(value, TensorBase):
                 if output_shape != value.shape:
                     raise RuntimeError(
                         f"The expanded size of the tensor must match the existing non-singleton dimension size. Target sizes: {output_shape}.  Tensor sizes: {value.shape}"
                     )
-                # Assign values from another TensorData to multiple locations.
+                # Assign values from another TensorBase to multiple locations.
                 for index, item in zip(
                     itertools.product(*possible_indices), value._data
                 ):
@@ -449,14 +449,14 @@ class TensorData:
         )  # Return the translated coordinates of the existing tensor.
 
     def __validate_broadcast(self, desired_shape: tuple[int]) -> None:
-        """Helper function to determine whether the shape of self TensorData can be broadcasted
+        """Helper function to determine whether the shape of self TensorBase can be broadcasted
         to the desired shape.
 
         Args:
-            desired_shape (tuple): The shape to which self TensorData is attempted to be broadcasted.
+            desired_shape (tuple): The shape to which self TensorBase is attempted to be broadcasted.
 
         Raises:
-            ValueError: If the dimensions of self TensorData are incompatible for broadcasting to the desired shape.
+            ValueError: If the dimensions of self TensorBase are incompatible for broadcasting to the desired shape.
         """
         # Iterate over the reversed dimensions of both shapes.
         for self_dim, desired_dim in zip(reversed(self.shape), reversed(desired_shape)):
@@ -465,8 +465,8 @@ class TensorData:
             if not (self_dim == 1 or self_dim == desired_dim):
                 raise ValueError("Incompatible dimensions for broadcasting")
 
-    def broadcast(self, *desired_shape: int) -> TensorData:
-        """Broadcasts the TensorData to the desired shape.
+    def broadcast(self, *desired_shape: int) -> TensorBase:
+        """Broadcasts the TensorBase to the desired shape.
 
         Args:
             desired_shape: The desired shape of the tensor.
@@ -490,7 +490,7 @@ class TensorData:
         # If the tensor has no elements (e.g., it's a singleton), create a new tensor with the desired shape and fill it with the same value.
         if not self._data:
             value = self._item
-            broadcasted_tensor = TensorData(*desired_shape)
+            broadcasted_tensor = TensorBase(*desired_shape)
             for elem in broadcasted_tensor._data:
                 elem._item = value
             return broadcasted_tensor
@@ -499,7 +499,7 @@ class TensorData:
         self.__validate_broadcast(desired_shape)
 
         # Create a new tensor with the desired shape and the same data type.
-        broadcasted_tensor = TensorData(*desired_shape[-len(self.shape) :])
+        broadcasted_tensor = TensorBase(*desired_shape[-len(self.shape) :])
 
         # Loop through all coordinates in the new tensor.
         for i, broadcasted_tensor_index in enumerate(
@@ -531,15 +531,15 @@ class TensorData:
     def __all_coordinates(self):
         return all_coordinates(self.shape)
 
-    def sum(self, dims: tuple | int = None, keepdims: bool = False) -> TensorData:
-        """Return a new TensorData object summed along the specified dimensions.
+    def sum(self, dims: tuple | int = None, keepdims: bool = False) -> TensorBase:
+        """Return a new TensorBase object summed along the specified dimensions.
 
         Args:
             dims (tuple or int, optional): The dimensions along which to sum. If None, sum over all dimensions.
             keep_dims (bool, optional): Whether to keep the dimensions of the summed axes. Defaults to True.
 
         Returns:
-            TensorData: A new TensorData object with the summed values.
+            TensorBase: A new TensorBase object with the summed values.
 
         Raises:
             ValueError: If any dimension index is out of bounds.
@@ -557,11 +557,11 @@ class TensorData:
             dims = (dims,)
         if self._item:
             # If the tensor is a singleton, return a new tensor with the same value.
-            return TensorData(value=self._item)
+            return TensorBase(value=self._item)
 
         if not dims:
             # Handle case where dims is None. If None, sum over all dimensions.
-            return TensorData(value=sum(td._item for td in self._data))
+            return TensorBase(value=sum(td._item for td in self._data))
 
         # Ensure all dimensions are within bounds.
         if any(dim < 0 or dim >= len(self.shape) for dim in dims):
@@ -574,7 +574,7 @@ class TensorData:
             1 if dim in dims else dimension for dim, dimension in enumerate(self.shape)
         )
         # Initialize the new tensor with zeros.
-        new_tensor = TensorData(*new_shape, value=0)
+        new_tensor = TensorBase(*new_shape, value=0)
 
         # Iterate over every coordinate in the original tensor.
         for orig_index, orig_coord in enumerate(self.__all_coordinates()):
@@ -596,7 +596,7 @@ class TensorData:
 
         return new_tensor
 
-    def mean(self, dims: tuple | int = None, keepdims: bool = False) -> TensorData:
+    def mean(self, dims: tuple | int = None, keepdims: bool = False) -> TensorBase:
         """Compute the mean of values in the tensor along the specified dimensions.
 
         Args:
@@ -604,7 +604,7 @@ class TensorData:
             keep_dims (bool, optional): Whether to keep the dimensions of the computed mean. Defaults to None.
 
         Returns:
-            TensorData: A new TensorData object containing the mean values.
+            TensorBase: A new TensorBase object containing the mean values.
 
         Notes:
             - If `dims` is None, compute the mean over all dimensions.
@@ -614,7 +614,7 @@ class TensorData:
         """
         if self._item:
             # If the tensor is a singleton, return a new tensor with the same value.
-            return TensorData(value=self._item)
+            return TensorBase(value=self._item)
 
         # Compute the sum along the specified dimensions.
         res_sum = self.sum(dims, keepdims)
@@ -630,8 +630,8 @@ class TensorData:
         return res_sum / quotient
 
     # TODO(SAM): Document
-    def unbroadcast(self, *shape: int) -> TensorData:
-        """Return a new TensorData unbroadcast from current shape to desired shape.
+    def unbroadcast(self, *shape: int) -> TensorBase:
+        """Return a new TensorBase unbroadcast from current shape to desired shape.
 
         Reference to this: https://mostafa-samir.github.io/auto-diff-pt2/#unbroadcasting-adjoints
         """
@@ -666,28 +666,28 @@ class TensorData:
     def numel(self) -> int:
         return len(self._data) if self._data else 1
 
-    def relu(self) -> Union[TensorData, np.ndarray]:
-        """Return a new TensorData object with the ReLU of each element."""
-        new_tensor = TensorData(*self.shape)
+    def relu(self) -> Union[TensorBase, np.ndarray]:
+        """Return a new TensorBase object with the ReLU of each element."""
+        new_tensor = TensorBase(*self.shape)
         for i in range(len(new_tensor._data)):
             new_tensor._data[i]._item = relu(self._data[i]._item)
         return new_tensor
 
-    def sigmoid(self) -> TensorData:
-        """Return a new TensorData object with the sigmoid of each element."""
-        new_tensor = TensorData(*self.shape)
+    def sigmoid(self) -> TensorBase:
+        """Return a new TensorBase object with the sigmoid of each element."""
+        new_tensor = TensorBase(*self.shape)
         for i in range(len(new_tensor._data)):
             new_tensor._data[i]._item = sigmoid(self._data[i]._item)
         return new_tensor
 
-    def permute(self, *dims: int) -> TensorData:
-        """Return a new TensorData object with dimensions permuted according to the provided permutation.
+    def permute(self, *dims: int) -> TensorBase:
+        """Return a new TensorBase object with dimensions permuted according to the provided permutation.
 
         Args:
             *dims (int): The new order of dimensions for the tensor.
 
         Returns:
-            TensorData: A new TensorData object with the specified permutation of dimensions.
+            TensorBase: A new TensorBase object with the specified permutation of dimensions.
 
         Raises:
             RuntimeError: If the provided dimension tuple is not a valid permutation of the column indices of this tensor.
@@ -701,7 +701,7 @@ class TensorData:
         # Create the new shape based on the provided permutation.
         new_shape = [self.shape[dim] for dim in dims]
         # Create a new tensor with the permuted shape.
-        new_tensor = TensorData(*new_shape)
+        new_tensor = TensorBase(*new_shape)
         # Iterate through all elements in the original tensor.
         for index, coord in enumerate(self.__all_coordinates()):
             # Translate the coordinates according to the permutation.
@@ -716,37 +716,37 @@ class TensorData:
         return new_tensor
 
     @property
-    def T(self) -> TensorData:
-        """Return an aliased TensorData object with the transpose of the tensor."""
+    def T(self) -> TensorBase:
+        """Return an aliased TensorBase object with the transpose of the tensor."""
         # Transpose is the same as permuting the tensor with the reverse of its dimensions
         return self.permute(*reversed(range(len(self.shape))))
 
     def __set(self, val) -> None:
-        """Internal method to set all values in the TensorData to the specified value.
+        """Internal method to set all values in the TensorBase to the specified value.
 
         Args:
-            val: The value to set for all elements in the TensorData.
+            val: The value to set for all elements in the TensorBase.
 
         Returns:
             None
         """
         if not self._data:
-            # If the TensorData is a singleton, set its item value directly.
+            # If the TensorBase is a singleton, set its item value directly.
             self._item = val
         else:
             # Iterate over all elements and set their values to the specified value.
             for td in self._data:
                 td._item = val
 
-    def __binary_op(self, op: Callable, rhs: float | int | TensorData) -> TensorData:
-        """Internal method to perform an element-wise binary operation on the TensorData object.
+    def __binary_op(self, op: Callable, rhs: float | int | TensorBase) -> TensorBase:
+        """Internal method to perform an element-wise binary operation on the TensorBase object.
 
         Args:
             op (Callable): The binary operation to be applied.
-            rhs (float, int, or TensorData): The right-hand side operand of the operation.
+            rhs (float, int, or TensorBase): The right-hand side operand of the operation.
 
         Returns:
-            TensorData: A new TensorData object containing the result of the binary operation.
+            TensorBase: A new TensorBase object containing the result of the binary operation.
 
         Notes:
             - This method assumes that numpy mode is False if invoked.
@@ -755,13 +755,13 @@ class TensorData:
         """
         # Handle the case where rhs is a scalar or is a singleton.
         if isinstance(rhs, (float, int)) or not rhs._data:
-            # If rhs isn't a number, then it's a singleton TensorData object, so the value should be its item.
+            # If rhs isn't a number, then it's a singleton TensorBase object, so the value should be its item.
             value = rhs if isinstance(rhs, (float, int)) else rhs._item
             # Handle case where self is a singleton
             if not self._data:
-                return TensorData(value=op(self._item, value))
+                return TensorBase(value=op(self._item, value))
             # Create a new tensor with the same shape as self
-            new_tensor = TensorData(*self.shape)
+            new_tensor = TensorBase(*self.shape)
             # Apply the binary operation element-wise
             for i, elem in enumerate(new_tensor._data):
                 elem._item = op(self._data[i]._item, value)
@@ -771,7 +771,7 @@ class TensorData:
         broadcast_to = get_common_broadcast_shape(self.shape, rhs.shape)
 
         # Create an empty output tensor with the broadcast shape
-        out = TensorData(*broadcast_to)
+        out = TensorBase(*broadcast_to)
         # Broadcast self and rhs to the common shape
         lhs = self.broadcast(*broadcast_to)
         rhs = rhs.broadcast(*broadcast_to)
@@ -781,56 +781,56 @@ class TensorData:
 
         return out
 
-    def __add__(self, rhs: Union[float, int, TensorData]) -> TensorData:
+    def __add__(self, rhs: Union[float, int, TensorBase]) -> TensorBase:
         """Element-wise addition: self + rhs."""
         return self.__binary_op(add, rhs)
 
-    def __radd__(self, lhs: Union[float, int, TensorData]) -> TensorData:
+    def __radd__(self, lhs: Union[float, int, TensorBase]) -> TensorBase:
         """Element-wise addition is commutative: lhs + self."""
         return self + lhs
 
-    def __sub__(self, rhs: Union[float, int, TensorData]) -> TensorData:
+    def __sub__(self, rhs: Union[float, int, TensorBase]) -> TensorBase:
         """Element-wise subtraction: self - rhs."""
         return -rhs + self
 
-    def __rsub__(self, lhs: Union[float, int, TensorData]) -> TensorData:
+    def __rsub__(self, lhs: Union[float, int, TensorBase]) -> TensorBase:
         """Self as RHS in element-wise subtraction: lhs - self."""
         return -self + lhs
 
-    def __mul__(self, rhs: Union[float, int, TensorData]) -> TensorData:
+    def __mul__(self, rhs: Union[float, int, TensorBase]) -> TensorBase:
         """Element-wise multiplication: self * rhs."""
         return self.__binary_op(mul, rhs)
 
-    def __rmul__(self, lhs: float | int | TensorData) -> TensorData:
+    def __rmul__(self, lhs: float | int | TensorBase) -> TensorBase:
         """Element-wise multiplication is commutative: lhs * self."""
         return self * lhs
 
-    def __pow__(self, rhs: float | int) -> TensorData:
+    def __pow__(self, rhs: float | int) -> TensorBase:
         """Element-wise exponentiation: self ** rhs."""
         return self.__binary_op(pow, rhs)
 
-    def __truediv__(self, rhs: float | int | TensorData) -> TensorData:
+    def __truediv__(self, rhs: float | int | TensorBase) -> TensorBase:
         """Element-wise division: self / rhs."""
         return self * rhs**-1
 
-    def __rtruediv__(self, lhs: float | int | TensorData) -> TensorData:
+    def __rtruediv__(self, lhs: float | int | TensorBase) -> TensorBase:
         """Self as RHS in element-wise division: lhs / self."""
         return lhs * self**-1
 
-    def __neg__(self) -> TensorData:
+    def __neg__(self) -> TensorBase:
         """Element-wise unary negation: -self."""
         return self * -1
 
-    def __gt__(self, rhs: float | int | TensorData) -> TensorData:
+    def __gt__(self, rhs: float | int | TensorBase) -> TensorBase:
         """Element-wise comparison: self > rhs."""
         return self.__binary_op(gt, rhs)
 
-    def exp(self) -> TensorData:
+    def exp(self) -> TensorBase:
         # Handle case where self is a singleton
         if not self._data:
-            return TensorData(value=math.exp(self._item))
-        # Handle case where self is a non-singleton tensordata
-        new_tensor = TensorData(*self.shape)
+            return TensorBase(value=math.exp(self._item))
+        # Handle case where self is a non-singleton TensorBase
+        new_tensor = TensorBase(*self.shape)
         for i, elem in enumerate(new_tensor._data):
             elem._item = math.exp(self._data[i]._item)
         return new_tensor
@@ -842,7 +842,7 @@ class TensorData:
 
         return [td.item() for td in self._data]
 
-    def __matmul__(self, rhs: TensorData) -> TensorData:
+    def __matmul__(self, rhs: TensorBase) -> TensorBase:
         """N-dimensional tensor multiplication
 
         1. If both tensors are 1-dimensional, the dot product (scalar) is returned.
@@ -875,7 +875,7 @@ class TensorData:
 
         # If both tensors are 1-dimensional, the dot product (scalar) is returned.
         if lhs_dims == 1 and rhs_dims == 1:
-            # dot will return a tensordata because _data is comprised of Tensordata objects.
+            # dot will return a TensorBase because _data is comprised of TensorBase objects.
             return dot(self._data, rhs._data)
 
         # If both arguments are 2-dimensional, the matrix-matrix product is returned.
@@ -884,7 +884,7 @@ class TensorData:
                 lhs._data, lhs.shape, rhs._data, rhs.shape
             )
 
-            return TensorData.create_tensor_from_data(result_data, result_shape)
+            return TensorBase.create_tensor_from_data(result_data, result_shape)
 
         # If the first argument is 1-dimensional and the second argument is 2-dimensional...
         elif lhs_dims == 1 and rhs_dims == 2:
@@ -892,7 +892,7 @@ class TensorData:
             result_shape, result_data = matmul_2d(
                 lhs._data, (1,) + lhs.shape, rhs._data, rhs.shape
             )
-            return TensorData.create_tensor_from_data(
+            return TensorBase.create_tensor_from_data(
                 result_data,
                 (
                     result_shape[1],
@@ -907,7 +907,7 @@ class TensorData:
                 lhs._data, lhs.shape, rhs._data, rhs.shape + (1,)
             )
 
-            return TensorData.create_tensor_from_data(
+            return TensorBase.create_tensor_from_data(
                 result_data,
                 (
                     result_shape[0],
@@ -991,55 +991,55 @@ class TensorData:
             else:
                 new_shape += (rhs_matrix_dims[1],)
 
-            return TensorData.create_tensor_from_data(result_data, new_shape)
+            return TensorBase.create_tensor_from_data(result_data, new_shape)
 
     @staticmethod
-    def concatenate(tensordatas: tuple[TensorData], dim: int = 0) -> TensorData:
+    def concatenate(TensorBases: tuple[TensorBase], dim: int = 0) -> TensorBase:
         """Concatenates a sequence of tensors along a given dimension.
 
         Args:
-            tensors: A list of TensorData objects to concatenate.
+            tensors: A list of TensorBase objects to concatenate.
             dim: The dimension along which to concatenate.
 
         Returns:
-            The concatenated TensorData object.
+            The concatenated TensorBase object.
 
         Raises:
             ValueError: If tensors have incompatible shapes or dim is invalid.
         """
 
-        if not tensordatas:
+        if not TensorBases:
             raise ValueError("match.cat(): input tensors cannot be empty")
 
-        if dim < 0 or dim >= len(tensordatas[0].shape):
+        if dim < 0 or dim >= len(TensorBases[0].shape):
             raise ValueError(f"Invalid dimension: {dim}")
 
         # Check shape compatibility (all dimensions except the concatenation dim must match)
-        for i in range(1, len(tensordatas)):
+        for i in range(1, len(TensorBases)):
             if (
-                tensordatas[i].shape[:dim] + tensordatas[i].shape[dim + 1 :]
-                != tensordatas[0].shape[:dim] + tensordatas[0].shape[dim + 1 :]
+                TensorBases[i].shape[:dim] + TensorBases[i].shape[dim + 1 :]
+                != TensorBases[0].shape[:dim] + TensorBases[0].shape[dim + 1 :]
             ):
                 raise ValueError(
                     "match.cat(): tensors must have the same shape, except along the concatenation dimension"
                 )
 
         # Calculate the new shape after concatenation
-        new_shape = list(tensordatas[0].shape)
-        new_shape[dim] = sum(t.shape[dim] for t in tensordatas)
+        new_shape = list(TensorBases[0].shape)
+        new_shape[dim] = sum(t.shape[dim] for t in TensorBases)
         new_shape = tuple(new_shape)
 
         """CURRENTLY ONLY DIM=0 (HARDCODING IT) IS SUPPORT FOR EFFICIENCY"""
-        data_objects = [td._data for td in tensordatas]
+        data_objects = [td._data for td in TensorBases]
         new_data = list(itertools.chain.from_iterable(data_objects))
-        return TensorData.create_tensor_from_data(new_data, new_shape)
+        return TensorBase.create_tensor_from_data(new_data, new_shape)
 
         # # Initialize the new tensor
-        # new_tensor = TensorData(*new_shape)
+        # new_tensor = TensorBase(*new_shape)
 
         # # Perform concatenation by iterating through the tensors and copying their data
         # current_index = 0
-        # for tensor in tensordatas:
+        # for tensor in TensorBases:
         #     size = tensor.numel()
         #     for i in range(current_index, current_index + size):
         #         new_tensor._data[i]._item = tensor._data[i - current_index]._item

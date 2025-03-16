@@ -1,10 +1,17 @@
 import unittest
 import random
-import itertools
 import torch
 import numpy as np
 import logging
-from match import tensordata, tensor, randn, use_numpy
+from match import tensor, randn
+from match.config import BackendOption, backend_option
+
+if backend_option == BackendOption.C_EXTENSION:
+    from match.tensorbase import TensorBase
+elif backend_option == BackendOption.PYTHON:
+    from match.tensorbase_python import TensorBase
+elif backend_option == BackendOption.NUMPY:
+    from match.tensorbase_numpy import TensorBase
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -64,7 +71,7 @@ class BaseUnitTest(unittest.TestCase):
         match_tensorbase = match_tensor.grad if get_grad else match_tensor.data
         torch_tensor = None
 
-        if use_numpy:
+        if False:
             torch_tensor = torch.from_numpy(
                 np.array(match_tensorbase._numpy_data)
             ).float()
@@ -101,7 +108,7 @@ class BaseUnitTest(unittest.TestCase):
         return mat, ten
 
     def same_references(
-        self, match_tensor1: tensordata.TensorData, match_tensor2: tensordata.TensorData
+        self, match_tensor1: TensorBase, match_tensor2: TensorBase
     ) -> bool:
         """Checks of two Match tensors reference the same data elements.
 
