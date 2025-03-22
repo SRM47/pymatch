@@ -6,8 +6,6 @@ if backend_option == BackendOption.C_EXTENSION:
     from match.tensorbase import TensorBase
 elif backend_option == BackendOption.PYTHON:
     from .tensorbase_python import TensorBase
-elif backend_option == BackendOption.NUMPY:
-    from .tensorbase_numpy import TensorBase
 
 
 def cat(tensors: list[Tensor], dim=0) -> Tensor:

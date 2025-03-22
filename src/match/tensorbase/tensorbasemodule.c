@@ -1001,7 +1001,7 @@ static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *Py_UNUSED(args
 
     TensorBase *in = &(((PyTensorBase *)self)->tb);
     TensorBase *out = &(((PyTensorBase *)result)->tb);
-    
+
     if (result == NULL)
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to create new TensorBase object.");
@@ -1083,6 +1083,13 @@ static PyObject *PyTensorBase_get_stride(PyTensorBase *self, PyObject *Py_UNUSED
 
 static PyObject *PyTensorBase_get_raw_data(PyTensorBase *self, PyObject *Py_UNUSED(ignored))
 {
+    if (self->tb.ndim == 0)
+    {
+        scalar value;
+        memcpy(&value, &self->tb.data, sizeof(scalar));
+        return PyFloat_FromDouble(value);
+    }
+
     PyObject *raw_data = PyList_New(self->tb.numel);
 
     for (long i = 0; i < self->tb.numel; i++)
@@ -1331,16 +1338,16 @@ static PyObject *PyTensorBase_getitem(PyObject *o, PyObject *key)
 
     StatusCode status = TensorBase_get(in, subscripts, num_subscripts, out);
     switch (status)
-        {
-        case OK:
-            break;
-        case NOT_IMPLEMENTED:
-            PyErr_SetString(PyExc_NotImplementedError, "__getitem__ is not yet implemented for Tensors.");
-            return NULL;
-        default:
-            PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
-            return NULL;
-        }
+    {
+    case OK:
+        break;
+    case NOT_IMPLEMENTED:
+        PyErr_SetString(PyExc_NotImplementedError, "__getitem__ is not yet implemented for Tensors.");
+        return NULL;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "Unknown Error.");
+        return NULL;
+    }
 
     return (PyObject *)result;
 }

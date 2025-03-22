@@ -10,8 +10,6 @@ if backend_option == BackendOption.C_EXTENSION:
     from match.tensorbase import TensorBase
 elif backend_option == BackendOption.PYTHON:
     from match.tensorbase_python import TensorBase
-elif backend_option == BackendOption.NUMPY:
-    from match.tensorbase_numpy import TensorBase
 
 # Create a logger
 logger = logging.getLogger(__name__)
