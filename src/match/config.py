@@ -5,4 +5,4 @@ class BackendOption(Enum):
     PYTHON = 2
 
 # Config declarations
-backend_option = BackendOption.PYTHON
+backend_option = BackendOption.C_EXTENSION

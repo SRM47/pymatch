@@ -4,4 +4,4 @@ from .linear import *
 from .loss import *
 from .softmax import *
 from .module import *
-from .transformer import *
+# from .transformer import *

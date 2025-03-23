@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from tqdm import tqdm, trange
+from math import prod
 
 """
 Make a way to convert torch tensor to match tensor. 
@@ -26,16 +27,16 @@ Implement some sort of benchmarking/performance tests
 class IrisClassifierMatch(match.nn.Module):
     def __init__(self, num_input_features, num_output_features):
         super().__init__()
-        self.linear1 = match.nn.Linear(num_input_features, 256)
+        self.linear1 = match.nn.Linear(num_input_features, 128)
         self.relu1 = match.nn.Sigmoid()
 
-        self.linear2 = match.nn.Linear(256, 128)
+        self.linear2 = match.nn.Linear(128, 64)
         self.relu2 = match.nn.ReLU()
 
-        self.linear3 = match.nn.Linear(128, 64)
+        self.linear3 = match.nn.Linear(64, 32)
         self.relu3 = match.nn.ReLU()
 
-        self.output = match.nn.Linear(64, num_output_features)
+        self.output = match.nn.Linear(32, num_output_features)
         self.softmax = match.nn.Softmax(1)
 
     def forward(self, x: match.Tensor) -> match.Tensor:
@@ -48,76 +49,92 @@ class IrisClassifierMatch(match.nn.Module):
         return self.softmax(self.output(o3))
 
 
-def to_tensor(match_tensor) -> torch.Tensor:
-    """Converts a match tensor to a Pytorch tensor.
-
-    Args:
-        match_tensor (tensor.Tensor): The custom match tensor to convert
-        requires_grad (bool, optional): If True, the resulting PyTorch tensor will require grad. Defaults to False.
-        get_grad (bool, optional): If True, convert the grad of the provided match tensor to convert. Defaults to False.
-
-    Returns:
-        torch.Tensor: The equivalent PyTorch implementation of the provided match Match tensor.
-    """
-    match_tensorbase = match_tensor.data
-
-    if match_tensorbase.ndim == 0:
-        torch_tensor = torch.tensor(match_tensorbase.item()).float()
-    else:
-        torch_tensor = (
-            torch.Tensor(
-                match_tensorbase._raw_data
-            )  # Gets the raw 1D array storing the data of the TensorBase object.
-            .float()
-            .reshape(tuple(match_tensorbase.size))
-        )
-    return torch_tensor
-
-
-def data_to_match_tensor(data, p=1):
+def torch_to_match(
+    X: torch.Tensor, Y: torch.Tensor, p: float = 1, loading_msg: str | None = None
+):
     assert p > 0 and p <= 1
-    total_instances = data.data.shape[0]
-    X = data.data.reshape((total_instances, 784))
-    Y = data.targets
-    instances_to_load = int(total_instances * p)
-    X_match = TensorBase((instances_to_load, 784))
-    Y_match = TensorBase((instances_to_load, 10))
+    num_total_instances, num_features = X.data.shape[0], prod(X.data.shape[1:])
+    num_instances = int(num_total_instances * p)
+
+    X = X.data.reshape((num_total_instances, num_features))
+    Y = Y.data
+
+    X_match = TensorBase((num_instances, num_features))
+    Y_match = TensorBase((num_instances, 10))
     Y_match.fill_(0)
-    sequence = list(range(instances_to_load))
-    random.shuffle(sequence)
-    for i in tqdm(range(instances_to_load), desc="Loading training data", leave=False):
-        r = sequence[i]
-        for c in range(784):
+
+    load_sequence = list(range(num_instances))
+    random.shuffle(load_sequence)
+    for r in tqdm(load_sequence, desc=loading_msg, leave=False):
+        for c in range(num_features):
             X_match[r, c] = X[r, c].item()
         Y_match[r, Y[r].item()] = 1
+
     return match.Tensor(X_match), match.Tensor(Y_match)
+
 
 def arg_max(values):
     if not values:
         raise ValueError("Cannot find argmax of an empty sequence")
-    
-    max_index = 0
-    max_value = values[0]
-    
+
+    max_index, max_value = 0, values[0]
+
     for i, value in enumerate(values):
         if value > max_value:
             max_value = value
             max_index = i
-            
+
     return max_index
 
+
+def test_model(
+    model: match.nn.Module,
+    lossfn: match.nn.Module,
+    X_test: match.Tensor,
+    Y_test: match.Tensor,
+):
+    accuracy = {k: [0, 0] for k in range(Y_test.shape[1])}
+    num_instances = X_test.shape[0]
+    total_correct = 0
+    loss = 0
+    for i in range(num_instances):
+        prediction = model(X_test[i])
+        target = Y_test[i]
+
+        loss += lossfn(prediction, target)
+
+        prediction_arg_max = arg_max(prediction.data._raw_data)
+        target_arg_max = arg_max(target.data._raw_data)
+
+        correct = int(prediction_arg_max == target_arg_max)
+        total_correct += correct
+        accuracy[target_arg_max][0] += correct
+        accuracy[target_arg_max][1] += 1
+    return total_correct / num_instances, accuracy, (loss / num_instances).item()
+
+
 if __name__ == "__main__":
-    print("Loading train data...")
+    print("Downloading train data...")
     training_data = datasets.MNIST(
         root="data", train=True, download=True, transform=ToTensor()
     )
-    print("Loading test data...")
+    print("Downloading test data...")
     testing_data = datasets.MNIST(
         root="data", train=False, download=True, transform=ToTensor()
     )
     print("Transforming data into Match compatable format...")
-    X, Y = data_to_match_tensor(training_data, p=0.1)
-    X_test, Y_test = data_to_match_tensor(testing_data, p=1)
+    X, Y = torch_to_match(
+        training_data.data,
+        training_data.targets,
+        p=1,
+        loading_msg="Loading training data...",
+    )
+    X_test, Y_test = torch_to_match(
+        testing_data.data,
+        testing_data.targets,
+        p=1,
+        loading_msg="Loading testing data...",
+    )
     num_instances, num_input_features, num_output_features = (
         X.shape[0],
         X.shape[1],
@@ -128,121 +145,82 @@ if __name__ == "__main__":
     print(f"Number of output features: {num_output_features}")
 
     model = IrisClassifierMatch(num_input_features, num_output_features)
-    epochs = 30
-    lrr = 0.04
+    epochs = 10
+    learning_rate = 0.04
     lossfn = match.nn.MultiClassCrossEntropyLoss()
-    batch_size = 64
+    batch_size = 128
 
-    lr_loss_map = {lrr: []}
-    lr_test_loss_map = {lrr: []}
+    train_losses = []
+    test_losses = []
+    test_accuracy = []
 
     data_training_sequence = list(range(num_instances))
-    for lr in lr_loss_map.keys():
-        for epoch in trange(epochs, desc="Epochs"):
-            acc_dict = {k:[0,0] for k in range(10)}
-            total = 0.0
-            correct = 0.0
-            for i in range(X_test.shape[0]):
-                total += 1
-                prediction = model(X_test[i]).data._raw_data
-                target = Y_test[i].data._raw_data
-                prediction_arg_max = arg_max(prediction)
-                target_arg_max = arg_max(target)
-                correct += int(prediction_arg_max==target_arg_max)
-                acc_dict[target_arg_max][0] += int(prediction_arg_max==target_arg_max)
-                acc_dict[target_arg_max][1] += 1
-            lr_test_loss_map[lr].append(correct/total)
+    for epoch in trange(epochs, desc="Epochs"):
+        local_accuracy, accuracy_dict, test_loss = test_model(
+            model, lossfn=lossfn, X_test=X_test, Y_test=Y_test
+        )
+        test_accuracy.append(local_accuracy)
+        test_losses.append(test_loss)
 
-            print(f"Epoch {epoch} accuracy: {correct/total}")
-            print(f"Epoch {epoch} digit accuracies: {dict({k: round(v[0]/v[1], 2) for k, v in acc_dict.items()})}")
-            random.shuffle(data_training_sequence)
-            progress_bar = tqdm(
-                enumerate(data_training_sequence), desc=f"Epoch {epoch}", leave=False
-            )
-            loss = 0
-            for i, instance in progress_bar:
-                prediction = model(X[instance])
-                target = Y[instance]
+        random.shuffle(data_training_sequence)
+        progress_bar = tqdm(
+            enumerate(data_training_sequence), desc=f"Epoch {epoch}", leave=False
+        )
+        loss = 0
+        for iteration, instance in progress_bar:
+            prediction = model(X[instance])
+            target = Y[instance]
 
-                loss += lossfn(prediction, target)
+            loss += lossfn(prediction, target)
 
-                if i % batch_size == 0 and i != 0:
-                    loss /= batch_size
-                    lr_loss_map[lr].append(loss.data.item())
-                    # Backpropagation
-                    loss.backward()
-                    for param in model.parameters():
-                        param.data -= lr * param.grad
-                    model.zero_grad()
+            if iteration % batch_size == 0 and iteration != 0:
+                loss /= batch_size
+                train_losses.append(loss.data.item())
 
-                    # Update progress bar with current loss
-                    progress_bar.set_postfix(loss=f"{loss.data.item():.4f}")
-                    loss = 0
-        acc_dict = {k:[0,0] for k in range(10)}
-        total = 0.0
-        correct = 0.0
-        for i in range(X_test.shape[0]):
-            total += 1
-            prediction = model(X_test[i]).data._raw_data
-            target = Y_test[i].data._raw_data
-            prediction_arg_max = arg_max(prediction)
-            target_arg_max = arg_max(target)
-            correct += int(prediction_arg_max==target_arg_max)
-            acc_dict[target_arg_max][0] += int(prediction_arg_max==target_arg_max)
-            acc_dict[target_arg_max][1] += 1
-        lr_test_loss_map[lr].append(correct/total)
+                # Backpropagation
+                loss.backward()
+                for param in model.parameters():
+                    param.data -= learning_rate * param.grad
+                model.zero_grad()
 
-        print(f"Epoch {epoch} accuracy: {correct/total}")
-        print(f"Epoch {epoch} digit accuracies: {dict({k: round(v[0]/v[1], 2) for k, v in acc_dict.items()})}")
+                # Update progress bar with current loss
+                progress_bar.set_postfix(loss=f"{loss.data.item():.4f}")
+                loss = 0
 
-            
+    local_accuracy, accuracy_dict, test_loss = test_model(
+        model, lossfn=lossfn, X_test=X_test, Y_test=Y_test
+    )
+    test_accuracy.append(local_accuracy)
+    test_losses.append(test_loss)
 
-    # Define colors for each line
-    colors = ["blue", "green", "orange", "purple", "brown", "pink"]
+    # Calculate how many training steps per epoch
+    steps_per_epoch = num_instances / batch_size
 
-    # Create the plot
-    plt.figure(figsize=(12, 6))
+    # Create x-coordinates for both losses
+    train_x = [i/steps_per_epoch for i in range(len(train_losses))]  # Fraction of epochs
+    test_x = list(range(len(test_losses)))  # Whole epochs
 
-    # Iterate through the lr_loss_map and plot each line
-    for i, (lr, losses) in enumerate(lr_loss_map.items()):
-        plt.plot(losses, label=f"LR={lr}", color=colors[i % len(colors)])
+    # Create figure and primary y-axis
+    fig, ax1 = plt.figure(figsize=(12, 6)), plt.gca()
 
-    # Add labels and title
-    plt.xlabel("Epochs/Iterations")
-    plt.ylabel("Loss")
-    plt.title("Loss vs. Epoch/Iterations for Different Learning Rates")
+    # Plot losses on the primary y-axis
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss', color='black')
+    ax1.plot(train_x, train_losses, label="Train Loss", color="green")
+    ax1.plot(test_x, test_losses, label="Test Loss", color="orange")
+    ax1.tick_params(axis='y', labelcolor='black')
+    ax1.legend(loc='upper left')
 
-    # Add legend
-    plt.legend()
+    # Create secondary y-axis
+    ax2 = ax1.twinx()
 
-    # Add grid for better readability
-    plt.grid(True)
+    # Plot accuracy on the secondary y-axis
+    ax2.set_ylabel('Accuracy', color='blue')
+    ax2.plot(test_x, test_accuracy, label="Test Accuracy", color="blue", linestyle='--')
+    ax2.tick_params(axis='y', labelcolor='blue')
+    ax2.legend(loc='upper right')
 
-    # Save the plot to a file
-    plt.savefig(
-        "loss_vs_learning_rate.png"
-    )  # You can change the filename and extension (e.g., .jpg, .pdf)
-
-    plt.cla()
-
-    # Create the plot
-    plt.figure(figsize=(12, 6))
-
-
-    plt.plot(lr_test_loss_map[lrr], label=f"LR={lrr}", color="red")
-
-    # Add labels and title
-    plt.xlabel("Epochs/Iterations")
-    plt.ylabel("Test Accuracy")
-    plt.title("Test Accuracy vs. Epoch/Iterations for Different Learning Rates")
-
-    # Add legend
-    plt.legend()
-
-    # Add grid for better readability
-    plt.grid(True)
-
-    # Save the plot to a file
-    plt.savefig(
-        "test_accuracy_vs_learning_rate.png"
-    )  # You can change the filename and extension (e.g., .jpg, .pdf)
+    # Add grid and adjust layout
+    ax1.grid(True)
+    fig.tight_layout()
+    plt.savefig("plot.png")

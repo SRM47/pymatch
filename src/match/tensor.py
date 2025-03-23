@@ -418,3 +418,6 @@ class Tensor:
         # TODO: account for degrees of freedom
         var = squared_deviation_from_mean.mean(dim, keepdims)
         return var
+
+    def item(self):
+        return self.data.item()
