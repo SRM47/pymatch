@@ -4,14 +4,14 @@ A pure-Python, PyTorch-like automatic differentiation library for education.
 
 **pymatch** is a lightweight, educational library designed to demonstrate the fundamentals of automatic differentiation and neural network operations. It provides a simplified, Python-only implementation of core concepts found in popular deep learning frameworks like PyTorch.
 
-**Key Features:**
+### Key Features
 
 * **Automatic Differentiation:** Implements reverse-mode automatic differentiation to compute gradients of arbitrary functions.
 * **Tensor Operations:** Supports basic tensor operations like addition, subtraction, multiplication, and exponentiation, and others
 * **Educational Focus:** Designed to be easily understandable and modifiable, making it ideal for learning about automatic differentiation.
 * **Pure Python:** No external dependencies beyond standard Python libraries, enhancing portability and accessibility.
 
-** Future Development Ideas**
+### Future Development Ideas
 
 * **Conv2d in C**: Implement the Conv2D layer from `/src/match/nn/conv2d.py` in the `src/match/tensorbase` in C.
 * **Pytorch-like Optimizers**: Implement standard optimizers like _SGD_, _RMSProp_, _Adam_, _AdamW_, etc., in a new file `src/match/nn/optimizer.py`.
