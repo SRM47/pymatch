@@ -12,19 +12,8 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm, trange
 from math import prod
 
-"""
-Make a way to convert torch tensor to match tensor. 
-Make Optimizer
-Make Dataloader
-Implement Conv2d in C
-Implement Max Pool + Ave pool + gradient
-implement testing
-Implement shuffle
-Implement some sort of benchmarking/performance tests
-"""
 
-
-class IrisClassifierMatch(match.nn.Module):
+class MNISTClassifier(match.nn.Module):
     def __init__(self, num_input_features, num_output_features):
         super().__init__()
         self.linear1 = match.nn.Linear(num_input_features, 128)
@@ -144,7 +133,7 @@ if __name__ == "__main__":
     print(f"Number of input features: {num_input_features}")
     print(f"Number of output features: {num_output_features}")
 
-    model = IrisClassifierMatch(num_input_features, num_output_features)
+    model = MNISTClassifier(num_input_features, num_output_features)
     epochs = 10
     learning_rate = 0.04
     lossfn = match.nn.MultiClassCrossEntropyLoss()
@@ -223,4 +212,4 @@ if __name__ == "__main__":
     # Add grid and adjust layout
     ax1.grid(True)
     fig.tight_layout()
-    plt.savefig("plot_python.png")
+    plt.savefig("plot.png")
