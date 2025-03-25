@@ -65,7 +65,7 @@ def torch_to_match(
 
     load_sequence = list(range(num_instances))
     random.shuffle(load_sequence)
-    for r in tqdm(load_sequence, desc=loading_msg, leave=False):
+    for r in tqdm(load_sequence, desc=loading_msg, leave=True):
         for c in range(num_features):
             X_match[r, c] = X[r, c].item()
         Y_match[r, Y[r].item()] = 1
@@ -126,13 +126,13 @@ if __name__ == "__main__":
     X, Y = torch_to_match(
         training_data.data,
         training_data.targets,
-        p=1,
+        p=0.1,
         loading_msg="Loading training data...",
     )
     X_test, Y_test = torch_to_match(
         testing_data.data,
         testing_data.targets,
-        p=1,
+        p=0.1,
         loading_msg="Loading testing data...",
     )
     num_instances, num_input_features, num_output_features = (
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     test_accuracy = []
 
     data_training_sequence = list(range(num_instances))
-    for epoch in trange(epochs, desc="Epochs"):
+    for epoch in range(epochs):
         local_accuracy, accuracy_dict, test_loss = test_model(
             model, lossfn=lossfn, X_test=X_test, Y_test=Y_test
         )
@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
         random.shuffle(data_training_sequence)
         progress_bar = tqdm(
-            enumerate(data_training_sequence), desc=f"Epoch {epoch}", leave=False
+            enumerate(data_training_sequence), desc=f"Epoch {epoch}", leave=True
         )
         loss = 0
         for iteration, instance in progress_bar:
@@ -223,4 +223,4 @@ if __name__ == "__main__":
     # Add grid and adjust layout
     ax1.grid(True)
     fig.tight_layout()
-    plt.savefig("plot.png")
+    plt.savefig("plot_python.png")

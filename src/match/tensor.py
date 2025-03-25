@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from logging import info
 from typing import Callable, Set
-
-from .config import BackendOption, backend_option
-
-if backend_option == BackendOption.C_EXTENSION:
-    from match.tensorbase import TensorBase
-elif backend_option == BackendOption.PYTHON:
-    from .tensorbase_python import TensorBase
+from match.tensorbase import TensorBase
 
 class Tensor:
     def __init__(self, data: TensorBase, children: tuple = ()) -> None:

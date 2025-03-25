@@ -1,11 +1,7 @@
 from .config import BackendOption, backend_option
 from random import gauss
 from .tensor import Tensor
-
-if backend_option == BackendOption.C_EXTENSION:
-    from match.tensorbase import TensorBase
-elif backend_option == BackendOption.PYTHON:
-    from .tensorbase_python import TensorBase
+from match.tensorbase import TensorBase
 
 
 def cat(tensors: list[Tensor], dim=0) -> Tensor:
