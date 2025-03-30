@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import namedtuple
 from logging import info
 from typing import Callable, Set
 from match.tensorbase import TensorBase
@@ -72,7 +73,7 @@ class Tensor:
 
         result._gradient = _gradient
         return result
-    
+
     def dim(self) -> int:
         """Return the dimension of the tensor."""
         return self.data.ndim
@@ -112,7 +113,7 @@ class Tensor:
 
         def _gradient() -> None:
             info(f"Gradient of summation. Shape: {self.shape}")
-            self.grad += result.grad # 1 * result.grad
+            self.grad += result.grad  # 1 * result.grad
 
         result._gradient = _gradient
         return result
@@ -378,7 +379,7 @@ class Tensor:
         result: Tensor = Tensor(self.data.log(), children=(self,))
 
         def _gradient() -> None:
-            self.grad += (1/self.data) * result.grad
+            self.grad += (1 / self.data) * result.grad
 
         result._gradient = _gradient
         return result
@@ -415,3 +416,27 @@ class Tensor:
 
     def item(self):
         return self.data.item()
+
+    def max(self, dim: int = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            return Tensor(self.data.max((), keepdim))
+        else:
+            return Tensor(self.data.max((dim,), keepdim))
+
+    def min(self, dim: int = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            return Tensor(self.data.min((), keepdim))
+        else:
+            return Tensor(self.data.min((dim,), keepdim))
+
+    def argmax(self, dim: int = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            return Tensor(self.data.argmax((), keepdim))
+        else:
+            return Tensor(self.data.argmax((dim,), keepdim))
+
+    def argmin(self, dim: int = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            return Tensor(self.data.argmin((), keepdim))
+        else:
+            return Tensor(self.data.argmin((dim,), keepdim))

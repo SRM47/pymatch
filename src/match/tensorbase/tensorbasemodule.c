@@ -179,6 +179,9 @@ static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssiz
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 static PyObject *PyTensorBase_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 
+static PyObject *PyTensorBase_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+static PyObject *PyTensorBase_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+
 static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args);
 static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args);
 static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *args);
@@ -231,6 +234,9 @@ static PyMethodDef PyTensorBase_instance_methods[] = {
 
     {"mean", (PyCFunctionFast)PyTensorBase_mean, METH_FASTCALL, "Compute the mean value."},
     {"sum", (PyCFunctionFast)PyTensorBase_sum, METH_FASTCALL, "Compute the sum of elements."},
+
+    {"argmax", (PyCFunctionFast)PyTensorBase_argmax, METH_FASTCALL, "Compute the indices of the maximum value of all elements in the input tensor."},
+    {"argmin", (PyCFunctionFast)PyTensorBase_argmin, METH_FASTCALL, "Compute the indices of the minimum value of all elements in the input tensor."},
 
     {"unbroadcast", (PyCFunction)PyTensorBase_unbroadcast, METH_O, "Unbroadcast TensorBase."},
 
@@ -862,6 +868,8 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
     IndexArray dims;
     if (PyTuple_Size(args[0]) != 0)
     {
+        // If specific dimensions were provided, aggregate over the specified dimensions.
+        // Covert the tuple of dimensions into an IndexArray.
         if (arg_to_shape(args[0], dims) < 0)
         {
             return NULL;
@@ -869,6 +877,7 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
     }
     else
     {
+        // If dims = None, then aggregate over all dimensions, synonymous with aggregating over dimensions 1, 2,..., ndim-1.
         for (long i = 0; i < t->ndim; i++)
         {
             dims[i] = i;
@@ -925,14 +934,46 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
 
 static PyObject *PyTensorBase_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_max is not implemented");
-    return NULL;
+    // The first argument must be a tuple containing at most one element.
+    if (!(PyTuple_Check(args[0]) && (PyTuple_Size(args[0]) <= 1)))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected max over a single, or all dimensions (dim = None)");
+        return NULL;
+    }
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_MAX);
 }
 
 static PyObject *PyTensorBase_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyErr_SetString(PyExc_NotImplementedError, "PyTensorBase_min is not implemented");
-    return NULL;
+    // The first argument must be a tuple containing at most one element.
+    if (!(PyTuple_Check(args[0]) && (PyTuple_Size(args[0]) <= 1)))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected min over a single, or all dimensions (dim = None)");
+        return NULL;
+    }
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_MIN);
+}
+
+static PyObject *PyTensorBase_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    // The first argument must be a tuple containing at most one element.
+    if (!(PyTuple_Check(args[0]) && (PyTuple_Size(args[0]) <= 1)))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected argmax over a single, or all dimensions (dim = None)");
+        return NULL;
+    }
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_ARGMAX);
+}
+
+static PyObject *PyTensorBase_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    // The first argument must be a tuple containing at most one element.
+    if (!(PyTuple_Check(args[0]) && (PyTuple_Size(args[0]) <= 1)))
+    {
+        PyErr_SetString(PyExc_ValueError, "Expected argmin over a single, or all dimensions (dim = None)");
+        return NULL;
+    }
+    return PyTensorBase_agg(self, args, nargs, SCALAR_AGG_ARGMIN);
 }
 
 static PyObject *PyTensorBase_mean(PyObject *self, PyObject *const *args, Py_ssize_t nargs)

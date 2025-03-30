@@ -1,8 +1,5 @@
-import unittest
 import torch
 from .base import BaseUnitTest
-import itertools
-from match import prod
 from match.tensorbase import TensorBase
 import operator
 from typing import Callable
@@ -46,6 +43,7 @@ class TestTensorBase(BaseUnitTest):
         return mat, ten
 
     def almost_equal(self, match_tensorbase, torch_tensor, equal_nan=False) -> bool:
+        print(match_tensorbase, torch_tensor)
         self.assertTrue(
             torch.allclose(
                 self.to_tensor(match_tensorbase),
@@ -303,6 +301,65 @@ class TestTensorBase(BaseUnitTest):
             tensor._raw_data,
             [47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         )
+    
+    def test_max(self):
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3))
+        with self.subTest(msg="dim"):
+            self.almost_equal(match_tensor.max((0,), False), torch_tensor.max(0, keepdim=False).values)
+            self.almost_equal(match_tensor.max((2,), False), torch_tensor.max(2, keepdim=False).values)
+        with self.subTest(msg="keepdim"):
+            self.almost_equal(
+                match_tensor.max((1,), True),
+                torch_tensor.max(1, keepdim=True).values,
+            )
+        with self.subTest(msg="nodim"):
+            self.almost_equal(match_tensor.max((), False), torch_tensor.max())
+    
+    def test_min(self):
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3))
+        with self.subTest(msg="dim"):
+            self.almost_equal(match_tensor.min((0,), False), torch_tensor.min(0, keepdim=False).values)
+            self.almost_equal(match_tensor.min((2,), False), torch_tensor.min(2, keepdim=False).values)
+        with self.subTest(msg="keepdim"):
+            self.almost_equal(
+                match_tensor.min((1,), True),
+                torch_tensor.min(1, keepdim=True).values,
+            )
+        with self.subTest(msg="nodim"):
+            self.almost_equal(match_tensor.min((), False), torch_tensor.min())
+    
+    def test_argmax(self):
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3))
+        print(match_tensor, torch_tensor)
+        with self.subTest(msg="dim"):
+            self.almost_equal(match_tensor.argmax((0,), False), torch_tensor.argmax(0, keepdim=False))
+            self.almost_equal(match_tensor.argmax((2,), False), torch_tensor.argmax(2, keepdim=False))
+        with self.subTest(msg="keepdim"):
+            self.almost_equal(
+                match_tensor.argmax((1,), True),
+                torch_tensor.argmax(1, keepdim=True),
+            )
+        with self.subTest(msg="nodim"):
+            self.almost_equal(match_tensor.argmax((), False), torch_tensor.argmax())
+        with self.subTest(msg="singleton"):
+            match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=3)
+            self.almost_equal(match_tensor.argmax((), False), torch_tensor.argmax())
+    
+    def test_argmin(self):
+        match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3))
+        with self.subTest(msg="dim"):
+            self.almost_equal(match_tensor.argmin((0,), False), torch_tensor.argmin(0, keepdim=False))
+            self.almost_equal(match_tensor.argmin((2,), False), torch_tensor.argmin(2, keepdim=False))
+        with self.subTest(msg="keepdim"):
+            self.almost_equal(
+                match_tensor.argmin((1,), True),
+                torch_tensor.argmin(1, keepdim=True),
+            )
+        with self.subTest(msg="nodim"):
+            self.almost_equal(match_tensor.argmin((), False), torch_tensor.argmin())
+        with self.subTest(msg="singleton"):
+            match_tensor, torch_tensor = self.generate_tensor_pair((), fill_value=3)
+            self.almost_equal(match_tensor.argmin((), False), torch_tensor.argmin())
 
     def test_sum(self):
         match_tensor, torch_tensor = self.generate_tensor_pair((3, 1, 3), fill_value=3)

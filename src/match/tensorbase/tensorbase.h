@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 #include <string.h>
 
 // TODO: potentially rename tensorbase folder to c_backend, py_backend 
@@ -65,7 +66,11 @@ typedef enum
 typedef enum
 {
     SCALAR_AGG_SUM,
-    SCALAR_AGG_MEAN
+    SCALAR_AGG_MEAN,
+    SCALAR_AGG_MAX,
+    SCALAR_AGG_MIN,
+    SCALAR_AGG_ARGMAX,
+    SCALAR_AGG_ARGMIN,
 } AggScalarOperation;
 
 // Enum for status codes

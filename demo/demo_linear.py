@@ -92,8 +92,8 @@ def test_model(
 
         loss += lossfn(prediction, target)
 
-        prediction_arg_max = arg_max(prediction.data._raw_data)
-        target_arg_max = arg_max(target.data._raw_data)
+        prediction_arg_max = prediction.argmax().item()
+        target_arg_max = target.argmax().item()
 
         correct = int(prediction_arg_max == target_arg_max)
         total_correct += correct

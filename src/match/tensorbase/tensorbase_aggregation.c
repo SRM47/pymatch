@@ -34,6 +34,13 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
     if (TensorBase_is_singleton(in))
     {
         memcpy(out, in, sizeof(TensorBase));
+
+        if (agg == SCALAR_AGG_ARGMAX || agg == SCALAR_AGG_ARGMIN)
+        {
+            // The argmax/argmin of a singleton is the only element in the tensor.
+            out->data = 0;
+        }
+
         return OK;
     }
 
@@ -52,23 +59,57 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
     for (long dim = in->ndim; dim < MAX_RANK; dim++)
     {
         aggregated_shape[dim] = -1;
-    }
+    }  
+
+    // Boolean to indicate if only one dimension is being reduced (for ARGMAX and ARGMIN).
+    // If only one dimension is being reduced (aggregated away), then the second element in aggregation_dimensions would be negative (not set).
+    bool only_one_dimensions_reduced = aggregation_dimensions[1] < 0;
 
     // Initialize the output tensor with the new shape.
     RETURN_IF_ERROR(TensorBase_init(out, aggregated_shape, in->ndim));
 
-    // Loop through each element in the input tensors data, and map what position in the aggregated tensors data.
+    // Store a temporary buffer that holds the output (aggregated) tensors data on the stack for fast access.
     scalar temporary_output_buffer[out->numel];
-    memset(temporary_output_buffer, 0, sizeof(scalar) * out->numel);
+    // Store another temporary buffer to store the max and min elements for MAX, MIN, ARGMAX, and ARGMIN aggregation operations.
+    scalar min_max_buffer[out->numel];
 
+    // Initialization of this array depends on the aggregation operation.
+    switch (agg)
+    {
+    case SCALAR_AGG_MAX:
+    case SCALAR_AGG_ARGMAX:
+        for (long i = 0; i < out->numel; i++)
+        {
+            min_max_buffer[i] = -DBL_MAX;
+        }
+        break;
+    case SCALAR_AGG_MIN:
+    case SCALAR_AGG_ARGMIN:
+        for (long i = 0; i < out->numel; i++)
+        {
+            min_max_buffer[i] = DBL_MAX;
+        }
+        break;
+    case SCALAR_AGG_SUM:
+    case SCALAR_AGG_MEAN:
+        memset(temporary_output_buffer, 0, sizeof(scalar) * out->numel);
+        break;
+    default:
+        return INVALID_OPERATION;
+    }
+
+    // Loop through each element in the input tensors data, and map what position in the aggregated tensors data.
     for (long in_data_index = 0; in_data_index < in->numel; in_data_index++)
     {
         long temporary_index = in_data_index;
         long out_data_index = 0;
+        IndexArray in_coordinate;
+        // At this point, the dimensions of the input and output tensors are equal.
         for (long dim = out->ndim - 1; dim >= 0; dim--)
         {
             // Calculate the coordinate within the current dimension of the input tensor.
             long in_coordinate_at_current_dimension = temporary_index % in->shape[dim];
+            in_coordinate[dim] = in_coordinate_at_current_dimension;
 
             // Calculate the corresponding coordinate within the current dimension of the output tensor.
             // If dimensions_to_aggregate[dim] is 1, !dimensions_to_aggregate[dim] is 0, and the coordinate is reduced.
@@ -85,8 +126,38 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
             temporary_index /= in->shape[dim];
         }
 
+        scalar temp = min_max_buffer[out_data_index];;
+
         switch (agg)
         {
+        case SCALAR_AGG_MAX:
+            if (in->data[in_data_index] >= temp)
+            {
+                min_max_buffer[out_data_index] = in->data[in_data_index];
+                temporary_output_buffer[out_data_index] = in->data[in_data_index];
+            }
+            break;
+        case SCALAR_AGG_MIN:
+            if (in->data[in_data_index] < temp)
+            {
+                min_max_buffer[out_data_index] = in->data[in_data_index];
+                temporary_output_buffer[out_data_index] = in->data[in_data_index];
+            }
+            break;
+        case SCALAR_AGG_ARGMAX:
+            if (in->data[in_data_index] >= temp)
+            {
+                min_max_buffer[out_data_index] = in->data[in_data_index];
+                temporary_output_buffer[out_data_index] = only_one_dimensions_reduced ? in_coordinate[aggregation_dimensions[0]] : in_data_index;
+            }
+            break;
+        case SCALAR_AGG_ARGMIN:
+            if (in->data[in_data_index] < temp)
+            {
+                min_max_buffer[out_data_index] = in->data[in_data_index];
+                temporary_output_buffer[out_data_index] = only_one_dimensions_reduced ? in_coordinate[aggregation_dimensions[0]] : in_data_index;
+            }
+            break;
         case SCALAR_AGG_MEAN:
         case SCALAR_AGG_SUM:
             // For both MEAN and SUM aggregations, accumulate the input data into the temporary output buffer.
