@@ -11,6 +11,7 @@
         "format": "c",
         "random": "c",
         "complex": "c",
-        "__locale": "c"
+        "__locale": "c",
+        "limits": "c"
     }
 }
