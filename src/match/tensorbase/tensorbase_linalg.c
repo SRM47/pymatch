@@ -25,7 +25,7 @@ StatusCode TensorBase_binary_op_tensorbase_scalar(TensorBase *a, scalar s, Tenso
             apply_binop(binop, a_data[i], s, out_data + i); // out->data[i] = a->data[i] `op` s;
         }
     }
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, TensorBase *out, BinaryScalarOperation binop)
@@ -52,7 +52,7 @@ StatusCode TensorBase_binary_op_scalar_tensorbase(TensorBase *a, scalar s, Tenso
             apply_binop(binop, s, a_data[i], out_data + i); // out->data[i] = s `op` a->data[i];
         }
     }
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *lhs, TensorBase *rhs, TensorBase *out, BinaryScalarOperation binop)
@@ -118,14 +118,14 @@ StatusCode TensorBase_binary_op_tensorbase_tensorbase(TensorBase *lhs, TensorBas
         }
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
 {
     if (in->data == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (TensorBase_is_singleton(in))
@@ -146,14 +146,14 @@ StatusCode TensorBase_unary_op_inplace(TensorBase *in, UnaryScalarOperation uop)
             apply_uop(uop, in->data[i], in->data + i); // in->data[i] = uop(in->data[i]).
         }
     }
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOperation uop)
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
@@ -176,14 +176,14 @@ StatusCode TensorBase_unary_op(TensorBase *in, TensorBase *out, UnaryScalarOpera
             apply_uop(uop, in->data[i], out->data + i); // out->data[i] = uop(in->data[i]).
         }
     }
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_matrix_multiply(TensorBase *lhs, TensorBase *rhs, TensorBase *out)
 {
     if (lhs == NULL || rhs == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     RETURN_IF_ERROR(TensorBase_initialize_for_matrix_multiplication(lhs, rhs, out));
@@ -273,5 +273,5 @@ StatusCode TensorBase_matrix_multiply(TensorBase *lhs, TensorBase *rhs, TensorBa
         }
     }
 
-    return OK;
+    return TB_OK;
 }

@@ -477,7 +477,7 @@ static long args_to_shape(PyObject *args, ShapeArray tb_shape)
 
 static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, BinaryScalarOperation binop)
 {
-    StatusCode status = OK;
+    StatusCode status = TB_OK;
     PyTensorBase *result = (PyTensorBase *)PyObject_New(PyTensorBase, &PyTensorBaseType);
     if (result == NULL)
     {
@@ -515,15 +515,15 @@ static PyObject *PyTensorBase_nb_binary_operation(PyObject *a, PyObject *b, Bina
     // Check Error Codes
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
         return NULL;
-    case INCOMPATABLE_BROASCAST_SHAPES:
+    case TB_INCOMPATABLE_BROASCAST_SHAPES_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Incompatable shapes to broadcast for binary operation.");
         return NULL;
     default:
@@ -549,12 +549,12 @@ static PyObject *PyTensorBase_nb_unary_operation(PyObject *a, UnaryScalarOperati
     // Check Error Codes
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
         return NULL;
     default:
@@ -572,12 +572,12 @@ static PyObject *PyTensorBase_nb_unary_operation_inplace(PyObject *a, UnaryScala
     StatusCode status = TensorBase_unary_op_inplace(in, uop);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null pointer provided to binary operation");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to allocate memory for new tensorbase object.");
         return NULL;
     default:
@@ -618,18 +618,18 @@ static PyObject *PyTensorBase_matrix_multiply(PyObject *a, PyObject *b)
     StatusCode status = TensorBase_matrix_multiply(l, r, &(result->tb));
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to matmul method.");
         return NULL;
-    case MATMUL_SINGLETON:
+    case TB_MATMUL_WITH_SINGLETON_OPERAND_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Matrix multiplication is not supported for singleton (ndim = 0) operands. Both operands must be at least 1 dimensional.");
         return NULL;
-    case MATMUL_INCOMPATABLE_SHAPES:
+    case TB_MATMUL_INCOMPATABLE_SHAPES_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Incompatable shapes for matrix multiplication.");
         return NULL;
-    case INCOMPATABLE_BROASCAST_SHAPES:
+    case TB_INCOMPATABLE_BROASCAST_SHAPES_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unbroadcastable shapes for matrix multiplication.");
         return NULL;
     default:
@@ -727,7 +727,7 @@ static PyObject *PyTensorBase_item(PyObject *self, PyObject *Py_UNUSED(args))
     scalar item;
     TensorBase *t = &((PyTensorBase *)self)->tb;
     StatusCode status = TensorBase_item(t, &item);
-    if (status == ITEM_NUMEL_NOT_ONE)
+    if (status == TB_ELEMENT_COUNT_NOT_ONE_ERROR)
     {
         PyErr_SetString(PyExc_NotImplementedError, "item() is supported only for tensors with only 1 element (numel = 1).");
         return NULL;
@@ -749,21 +749,21 @@ static PyObject *PyTensorBase_reshape_(PyObject *self, PyObject *args)
     StatusCode status = TensorBase_reshape_inplace(t, shape, ndim);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    case INVALID_DIMENSION_SIZE:
+    case TB_INVALID_DIMENSION_SIZE_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+    case TB_SHAPE_MISMATCH_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return NULL;
     default:
@@ -791,21 +791,21 @@ static PyObject *PyTensorBase_reshape(PyObject *self, PyObject *args)
     StatusCode status = TensorBase_reshape(in, out, shape, ndim);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    case INVALID_DIMENSION_SIZE:
+    case TB_INVALID_DIMENSION_SIZE_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+    case TB_SHAPE_MISMATCH_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return NULL;
     default:
@@ -835,9 +835,9 @@ static PyObject *PyTensorBase_fill_(PyObject *self, PyObject *args)
     StatusCode status = TensorBase_fill_(t, fill_value);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to fill_.");
         return NULL;
     default:
@@ -904,24 +904,24 @@ static PyObject *PyTensorBase_agg(PyObject *self, PyObject *const *args, Py_ssiz
     StatusCode status = TensorBase_aggregate(t, dims, keepdim, &(result->tb), agg);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    case INVALID_DIMENSION_SIZE:
+    case TB_INVALID_DIMENSION_SIZE_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+    case TB_SHAPE_MISMATCH_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return NULL;
-    case DUPLICATE_AGGREGATION_DIM:
+    case TB_DUPLICATE_DIMENSION_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Duplicate dimension provided in dims to aggregate over.");
         return NULL;
     default:
@@ -1009,23 +1009,22 @@ static PyObject *PyTensorBase_permute(PyObject *self, PyObject *args)
     StatusCode status = TensorBase_permute(in, permutation, ndim, out);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to permute.");
         return NULL;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return NULL;
-    case PERMUTATION_DUPLICATE_DIM:
-    case PERMUTATION_INCORRECT_NDIM:
-    case INVALID_DIMENSION:
+    case TB_DUPLICATE_DIMENSION_ERROR:
+    case TB_DIMENSION_OUT_OF_BOUNDS_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Invalid permutation provided. Must be a valid permutation of numbers from 0 to ndim-1.");
         return NULL;
-    case INVALID_DIMENSION_SIZE:
+    case TB_INVALID_DIMENSION_SIZE_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
     default:
@@ -1052,24 +1051,24 @@ static PyObject *PyTensorBase_transpose(PyObject *self, PyObject *Py_UNUSED(args
     StatusCode status = TensorBase_transpose(in, out);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to reshape_.");
         return NULL;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return NULL;
-    case INVALID_DIMENSION_SIZE:
+    case TB_INVALID_DIMENSION_SIZE_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "All dimensions in tensor shape must be non negative.");
         return NULL;
-    case RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH:
+    case TB_SHAPE_MISMATCH_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Unable to reshape because number different of elements in new tensor.");
         return NULL;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return NULL;
-    case DUPLICATE_AGGREGATION_DIM:
+    case TB_DUPLICATE_DIMENSION_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Duplicate dimension provided in dims to aggregate over.");
         return NULL;
     default:
@@ -1172,9 +1171,9 @@ static PyObject *PyTensorBase_randn_(PyObject *self, PyObject *const *args, Py_s
 
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to randn.");
         return NULL;
     default:
@@ -1204,15 +1203,15 @@ static int PyTensorBase_init(PyTensorBase *self, PyObject *args, PyObject *kwds)
     StatusCode status = TensorBase_init(&self->tb, tb_shape, ndim);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NULL_INPUT_ERR:
+    case TB_NULL_INPUT_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Null tensorbase objects provided to init method.");
         return -1;
-    case NDIM_OUT_OF_BOUNDS:
+    case TB_INVALID_NDIM_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Maximum tensor rank exceeded.");
         return -1;
-    case MALLOC_ERR:
+    case TB_MALLOC_ERROR:
         PyErr_SetString(PyExc_RuntimeError, "Memory allocation error, unable to allocate enough memory for new tensorbase object.");
         return -1;
     default:
@@ -1258,7 +1257,7 @@ static PyObject *PyTensorBase_unbroadcast(PyObject *self, PyObject *args)
     StatusCode status = TensorBase_unbroadcast(in, shape, ndim, out);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
     default:
         PyErr_SetString(PyExc_RuntimeError, "Unknown Error in unbroadcast.");
@@ -1380,9 +1379,9 @@ static PyObject *PyTensorBase_getitem(PyObject *o, PyObject *key)
     StatusCode status = TensorBase_get(in, subscripts, num_subscripts, out);
     switch (status)
     {
-    case OK:
+    case TB_OK:
         break;
-    case NOT_IMPLEMENTED:
+    case TB_NOT_IMPLEMENTED_ERROR:
         PyErr_SetString(PyExc_NotImplementedError, "__getitem__ is not yet implemented for Tensors.");
         return NULL;
     default:
@@ -1412,9 +1411,9 @@ static int PyTensorBase_setitem(PyObject *o, PyObject *key, PyObject *v)
         StatusCode status = TensorBase_set_scalar(in, subscripts, num_subscripts, s);
         switch (status)
         {
-        case OK:
+        case TB_OK:
             break;
-        case NOT_IMPLEMENTED:
+        case TB_NOT_IMPLEMENTED_ERROR:
             PyErr_SetString(PyExc_NotImplementedError, "__setitem__ is not yet implemented for scalars.");
             return -1;
         default:
@@ -1428,9 +1427,9 @@ static int PyTensorBase_setitem(PyObject *o, PyObject *key, PyObject *v)
         StatusCode status = TensorBase_set_tensorbase(in, subscripts, num_subscripts, t);
         switch (status)
         {
-        case OK:
+        case TB_OK:
             break;
-        case NOT_IMPLEMENTED:
+        case TB_NOT_IMPLEMENTED_ERROR:
             PyErr_SetString(PyExc_NotImplementedError, "__setitem__ is not yet implemented for Tensors.");
             return -1;
         default:

@@ -5,7 +5,7 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     // This array will act as a "flag" array, where each index corresponds to a dimension of the input tensor.
@@ -22,11 +22,11 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
         }
         if (dim >= in->ndim)
         {
-            return INVALID_DIMENSION;
+            return TB_DIMENSION_OUT_OF_BOUNDS_ERROR;
         }
         if (dimensions_to_aggregate[dim] != 0)
         {
-            return DUPLICATE_AGGREGATION_DIM;
+            return TB_DUPLICATE_DIMENSION_ERROR;
         }
         dimensions_to_aggregate[dim] = 1;
     }
@@ -41,7 +41,7 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
             out->data = 0;
         }
 
-        return OK;
+        return TB_OK;
     }
 
     ShapeArray aggregated_shape;
@@ -95,7 +95,7 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
         memset(temporary_output_buffer, 0, sizeof(scalar) * out->numel);
         break;
     default:
-        return INVALID_OPERATION;
+        break;
     }
 
     // Loop through each element in the input tensors data, and map what position in the aggregated tensors data.
@@ -164,7 +164,7 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
             temporary_output_buffer[out_data_index] += in->data[in_data_index];
             break;
         default:
-            return INVALID_OPERATION;
+            break;
         }
     }
 
@@ -181,7 +181,7 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
 
     if (keepdim)
     {
-        return OK;
+        return TB_OK;
     }
 
     ShapeArray aggregated_shape_without_kept_dimensions;
@@ -203,5 +203,5 @@ StatusCode TensorBase_aggregate(TensorBase *in, IndexArray aggregation_dimension
     // Reshape the output tensor 'out' to the newly calculated aggregated shape.
     RETURN_IF_ERROR(TensorBase_reshape_inplace(out, aggregated_shape_without_kept_dimensions, ndim_without_kept_dimensions));
 
-    return OK;
+    return TB_OK;
 }

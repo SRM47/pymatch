@@ -3,7 +3,7 @@
 
 StatusCode TensorBase_broadcast_to(TensorBase *in, ShapeArray target_shape, long target_ndim, TensorBase *out)
 {
-    return NOT_IMPLEMENTED;
+    return TB_NOT_IMPLEMENTED_ERROR;
 }
 
 StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray target_shape, long target_ndim, TensorBase *out)
@@ -70,5 +70,5 @@ StatusCode TensorBase_unbroadcast(TensorBase *in, ShapeArray target_shape, long 
             memcpy(out, &temp, sizeof(TensorBase));
         }
     }
-    return OK;
+    return TB_OK;
 }

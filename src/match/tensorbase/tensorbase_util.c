@@ -3,7 +3,7 @@
 #include "tensorbase.h"
 
 // C macro do{}while(0).
-#define RETURN_IF_ERROR(x) ({ StatusCode _status = x; if (_status != OK) { return _status; } })
+#define RETURN_IF_ERROR(x) ({ StatusCode _status = x; if (_status != TB_OK) { return _status; } })
 
 static inline long max_long(long a, long b)
 {
@@ -30,7 +30,7 @@ static StatusCode TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
     // Assumes out->data doesn't point to any alocated memory.
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR; // Invalid input or output tensor
+        return TB_NULL_INPUT_ERROR; // Invalid input or output tensor
     }
 
     memcpy(out, in, sizeof(TensorBase));
@@ -40,11 +40,11 @@ static StatusCode TensorBase_create_empty_like(TensorBase *in, TensorBase *out)
         out->data = (scalar *)malloc(in->numel * sizeof(scalar));
         if (out->data == NULL)
         {
-            return MALLOC_ERR;
+            return TB_MALLOC_ERROR;
         }
     }
 
-    return OK;
+    return TB_OK;
 }
 
 static StatusCode TensorBase_convert_indices_to_data_index(TensorBase *in, IndexArray coord, long *data_index)
@@ -55,7 +55,7 @@ static StatusCode TensorBase_convert_indices_to_data_index(TensorBase *in, Index
         temporary_index += in->strides[dim] * coord[dim];
     }
     *data_index = temporary_index;
-    return OK;
+    return TB_OK;
 }
 
 static void print_long_list(const long *list, size_t size)
@@ -72,7 +72,7 @@ static StatusCode TensorBase_can_broadcast(ShapeArray source_shape, long source_
 {
     if (source_ndim > target_ndim)
     {
-        return INCOMPATABLE_BROASCAST_SHAPES;
+        return TB_INCOMPATABLE_BROASCAST_SHAPES_ERROR;
     }
 
     // Broadcast dimension initializations.
@@ -87,13 +87,13 @@ static StatusCode TensorBase_can_broadcast(ShapeArray source_shape, long source_
         }
         else
         {
-            return INCOMPATABLE_BROASCAST_SHAPES;
+            return TB_INCOMPATABLE_BROASCAST_SHAPES_ERROR;
         }
         source_dimension--;
         target_dimension--;
     }
 
-    return OK;
+    return TB_OK;
 }
 
 static StatusCode TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim, ShapeArray b_shape, long b_ndim, ShapeArray broadcasted_shape, long *broadcast_ndim)
@@ -136,7 +136,7 @@ static StatusCode TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim
         }
         else
         {
-            return INCOMPATABLE_BROASCAST_SHAPES;
+            return TB_INCOMPATABLE_BROASCAST_SHAPES_ERROR;
         }
 
         a_dim--;
@@ -144,7 +144,7 @@ static StatusCode TensorBase_get_broadcast_shape(ShapeArray a_shape, long a_ndim
         out_dim--;
     }
 
-    return OK;
+    return TB_OK;
 }
 
 static void TensorBase_get_translated_data_indices_from_broadcasted_index(
@@ -308,12 +308,12 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
 {
     if (a == NULL || b == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (TensorBase_is_singleton(a) || TensorBase_is_singleton(b))
     {
-        return MATMUL_SINGLETON;
+        return TB_MATMUL_WITH_SINGLETON_OPERAND_ERROR;
     }
 
     ShapeArray shape;
@@ -323,7 +323,7 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
     {
         if (a->numel != b->numel)
         {
-            return MATMUL_INCOMPATABLE_SHAPES;
+            return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
         }
         ndim = 0;
     }
@@ -331,7 +331,7 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
     {
         if (a->shape[0] != b->shape[0])
         {
-            return MATMUL_INCOMPATABLE_SHAPES;
+            return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
         }
         shape[0] = b->shape[1];
         ndim = 1;
@@ -340,7 +340,7 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
     {
         if (a->shape[1] != b->shape[0])
         {
-            return MATMUL_INCOMPATABLE_SHAPES;
+            return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
         }
         shape[0] = a->shape[0];
         ndim = 1;
@@ -349,7 +349,7 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
     {
         if (a->shape[1] != b->shape[0])
         {
-            return MATMUL_INCOMPATABLE_SHAPES;
+            return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
         }
         shape[0] = a->shape[0];
         shape[1] = b->shape[1];
@@ -371,14 +371,14 @@ static StatusCode TensorBase_initialize_for_matrix_multiplication(TensorBase *a,
         {
             if (a->shape[batch_dims_a] != b->shape[batch_dims_b])
             {
-                return MATMUL_INCOMPATABLE_SHAPES;
+                return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
             }
         }
         else
         {
             if (a->shape[batch_dims_a + 1] != b->shape[batch_dims_b])
             {
-                return MATMUL_INCOMPATABLE_SHAPES;
+                return TB_MATMUL_INCOMPATABLE_SHAPES_ERROR;
             }
         }
 
@@ -424,7 +424,7 @@ static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, Stri
         long dimension_size = shape[dim];
         if (dimension_size < 0)
         {
-            return INVALID_DIMENSION_SIZE;
+            return TB_INVALID_DIMENSION_SIZE_ERROR;
         }
         if (dimension_size > 0)
         {
@@ -451,7 +451,7 @@ static StatusCode calculate_strides_from_shape(ShapeArray shape, long ndim, Stri
         strides[dim] = stride;
     }
 
-    return OK;
+    return TB_OK;
 }
 
 typedef struct
@@ -487,7 +487,7 @@ static StatusCode TensorBase_deepcopy(TensorBase *in, TensorBase *out)
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
@@ -497,5 +497,5 @@ static StatusCode TensorBase_deepcopy(TensorBase *in, TensorBase *out)
         memcpy(out->data, in->data, in->numel * sizeof(scalar));
     }
 
-    return OK;
+    return TB_OK;
 }

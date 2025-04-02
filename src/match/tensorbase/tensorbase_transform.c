@@ -5,12 +5,12 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (in->ndim != ndim)
     {
-        return PERMUTATION_INCORRECT_NDIM;
+        return TB_INVALID_NDIM_ERROR;
     }
 
     if (TensorBase_is_singleton(in))
@@ -28,11 +28,11 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
         long dim = permutation[i];
         if (dim < 0 || dim >= in->ndim)
         {
-            return INVALID_DIMENSION;
+            return TB_DIMENSION_OUT_OF_BOUNDS_ERROR;
         }
         if (seen_dimensions[dim] != 0)
         {
-            return PERMUTATION_DUPLICATE_DIM;
+            return TB_DUPLICATE_DIMENSION_ERROR;
         }
         seen_dimensions[dim] = 1;
         permuted_shape[i] = in->shape[dim];
@@ -76,14 +76,14 @@ StatusCode TensorBase_permute(TensorBase *in, IndexArray permutation, long ndim,
         out->data[out_data_index] = in->data[in_data_index];
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_transpose(TensorBase *in, TensorBase *out)
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     long ndim = in->ndim;
@@ -102,12 +102,12 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
 {
     if (in == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (ndim > MAX_RANK)
     {
-        return NDIM_OUT_OF_BOUNDS;
+        return TB_INVALID_NDIM_ERROR;
     }
 
     // Verify that the new shape is valid by comparing the number of elements in the existing and new shapes.
@@ -116,13 +116,13 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
     {
         if (shape[dim] < 0)
         {
-            return INVALID_DIMENSION_SIZE;
+            return TB_INVALID_DIMENSION_SIZE_ERROR;
         }
         temp_numel *= shape[dim];
     }
     if (temp_numel != in->numel)
     {
-        return RESHAPE_INVALID_SHAPE_NUMEL_MISMATCH;
+        return TB_SHAPE_MISMATCH_ERROR;
     }
 
     // Calculate Strides of the tensor.
@@ -140,7 +140,7 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
             scalar *new_data_region = (scalar *)malloc(1 * sizeof(scalar));
             if (new_data_region == NULL)
             {
-                return MALLOC_ERR;
+                return TB_MALLOC_ERROR;
             }
             // Copy the bits of the original scalar into the first position of the new_data_region.
             memcpy(new_data_region, &(in->data), sizeof(scalar));
@@ -168,19 +168,19 @@ StatusCode TensorBase_reshape_inplace(TensorBase *in, ShapeArray shape, long ndi
     memcpy(in->shape, shape, MAX_RANK * sizeof(long));
     in->ndim = ndim;
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_reshape(TensorBase *in, TensorBase *out, ShapeArray shape, long ndim)
 {
     if (in == NULL || out == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (ndim > MAX_RANK)
     {
-        return NDIM_OUT_OF_BOUNDS;
+        return TB_INVALID_NDIM_ERROR;
     }
 
     RETURN_IF_ERROR(TensorBase_create_empty_like(in, out));
@@ -198,18 +198,18 @@ StatusCode TensorBase_fill_(TensorBase *in, scalar fill_value)
 {
     if (in == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (TensorBase_is_singleton(in))
     {
         memcpy(&(in->data), &fill_value, sizeof(scalar));
-        return OK;
+        return TB_OK;
     }
 
     if (in->data == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     for (long i = 0; i < in->numel; i++)
@@ -217,21 +217,21 @@ StatusCode TensorBase_fill_(TensorBase *in, scalar fill_value)
         in->data[i] = fill_value;
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
 {
     if (in == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (TensorBase_is_singleton(in))
     {
         randn_pair pair = randn(mu, sigma);
         memcpy(&in->data, &pair.a, sizeof(scalar));
-        return OK;
+        return TB_OK;
     }
     // Assumes tensor is already initialized with a valid `data` pointer.
     scalar *data = in->data;
@@ -245,14 +245,14 @@ StatusCode TensorBase_randn_(TensorBase *in, scalar mu, scalar sigma)
         }
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_item(TensorBase *t, scalar *item)
 {
     if (t->numel != 1)
     {
-        return ITEM_NUMEL_NOT_ONE;
+        return TB_ELEMENT_COUNT_NOT_ONE_ERROR;
     }
 
     if (TensorBase_is_singleton(t))
@@ -264,5 +264,5 @@ StatusCode TensorBase_item(TensorBase *t, scalar *item)
         *item = *(t->data);
     }
 
-    return OK;
+    return TB_OK;
 }

@@ -7,11 +7,11 @@ static StatusCode process_subscripts_for_indexing(SubscriptArray subscripts,
 {
     if (!subscripts || !original_shape)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
     if (num_subscripts > MAX_RANK)
     {
-        return NDIM_OUT_OF_BOUNDS;
+        return TB_INVALID_NDIM_ERROR;
     }
 
     long temporary_sub_ndim = 0;
@@ -26,18 +26,18 @@ static StatusCode process_subscripts_for_indexing(SubscriptArray subscripts,
         case INDEX:
             if (slice_start < 0 || slice_start >= original_shape[dim])
             {
-                return INDEX_OUT_OF_BOUNDS;
+                return TB_INDEX_OUT_OF_BOUNDS_ERROR;
             }
             break;
         case SLICE:
             if (slice_start < 0 || slice_stop < 0 || slice_step <= 0 ||
                 slice_start >= original_shape[dim])
             {
-                return STATUS_SUBSCRIPT_INVALID_PARAMETER;
+                return TB_INDEX_OUT_OF_BOUNDS_ERROR;
             }
             break;
         default:
-            return NULL_INPUT_ERR;
+            return TB_NULL_INPUT_ERROR;
         }
     }
 
@@ -48,7 +48,7 @@ static StatusCode process_subscripts_for_indexing(SubscriptArray subscripts,
         subscripts[dim] = (TensorBaseSubscript){SLICE, 0, original_shape[dim], 1};
     }
 
-    return OK;
+    return TB_OK;
 }
 
 static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
@@ -62,7 +62,7 @@ static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
 
     if (!subscripts || !original_shape || !sub_ndim)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     long temporary_sub_ndim = 0;
@@ -90,7 +90,7 @@ static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
             temporary_sub_ndim++;
             break;
         default:
-            return NULL_INPUT_ERR;
+            return TB_NULL_INPUT_ERROR;
         }
     }
 
@@ -101,7 +101,7 @@ static StatusCode calculate_shape_from_subscrtips(SubscriptArray subscripts,
         sub_shape[i] = -1;
     }
 
-    return OK;
+    return TB_OK;
 }
 
 static void get_next_coordinate(SubscriptArray subscripts, long num_subscrtips, IndexArray coord)
@@ -159,7 +159,7 @@ StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_su
         long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
         memcpy(&subtensor->data, in->data + in_data_index, sizeof(scalar));
-        return OK;
+        return TB_OK;
     }
 
     long curr_dim = in->ndim - 1;
@@ -173,20 +173,20 @@ StatusCode TensorBase_get(TensorBase *in, SubscriptArray subscripts, long num_su
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long num_subscripts, scalar s)
 {
     if (in == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     if (TensorBase_is_singleton(in))
     {
         memcpy(&in->data, &s, sizeof(scalar));
-        return OK;
+        return TB_OK;
     }
 
     long subtensor_ndim;
@@ -219,19 +219,19 @@ StatusCode TensorBase_set_scalar(TensorBase *in, SubscriptArray subscripts, long
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 
-    return OK;
+    return TB_OK;
 }
 
 StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, long num_subscripts, TensorBase *subtensor)
 {
-    long calculated_subtensor_ndim;
-    ShapeArray calculated_subtensor_shape;
+    long calculated_subtensor_ndim_from_subscripts;
+    ShapeArray calculated_subtensor_shape_from_subscripts;
     RETURN_IF_ERROR(process_subscripts_for_indexing(subscripts, num_subscripts, in->shape));
-    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, in->ndim, in->shape, calculated_subtensor_shape, &calculated_subtensor_ndim));
+    RETURN_IF_ERROR(calculate_shape_from_subscrtips(subscripts, in->ndim, in->shape, calculated_subtensor_shape_from_subscripts, &calculated_subtensor_ndim_from_subscripts));
 
-    if (!TensorBase_same_shape(calculated_subtensor_shape, subtensor->shape))
+    if (!TensorBase_same_shape(calculated_subtensor_shape_from_subscripts, subtensor->shape))
     {
-        return INVALID_SHAPES_FOR_SET;
+        return TB_SHAPE_MISMATCH_ERROR;
     }
 
     num_subscripts = in->ndim;
@@ -249,7 +249,7 @@ StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, 
         long in_data_index;
         RETURN_IF_ERROR(TensorBase_convert_indices_to_data_index(in, curr_index, &in_data_index));
         memcpy(in->data + in_data_index, &subtensor->data, sizeof(scalar));
-        return OK;
+        return TB_OK;
     }
 
     long curr_dim = num_subscripts - 1;
@@ -263,5 +263,5 @@ StatusCode TensorBase_set_tensorbase(TensorBase *in, SubscriptArray subscripts, 
         get_next_coordinate(subscripts, num_subscripts, curr_index);
     }
 
-    return OK;
+    return TB_OK;
 }

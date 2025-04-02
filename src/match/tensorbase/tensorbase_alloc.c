@@ -5,12 +5,12 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
 {
     if (ndim > MAX_RANK || ndim < 0)
     {
-        return NDIM_OUT_OF_BOUNDS;
+        return TB_INVALID_NDIM_ERROR;
     }
 
     if (tb == NULL)
     {
-        return NULL_INPUT_ERR;
+        return TB_NULL_INPUT_ERROR;
     }
 
     for (int dim = ndim; dim < MAX_RANK; dim++)
@@ -24,7 +24,7 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
     {
         if (shape[dim] < 0)
         {
-            return INVALID_DIMENSION_SIZE;
+            return TB_INVALID_DIMENSION_SIZE_ERROR;
         }
         numel *= shape[dim];
     }
@@ -41,7 +41,7 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
         data = (scalar *)malloc(numel * sizeof(scalar));
         if (data == NULL)
         {
-            return MALLOC_ERR;
+            return TB_MALLOC_ERROR;
         }
     }
     else
@@ -56,7 +56,7 @@ StatusCode TensorBase_init(TensorBase *tb, ShapeArray shape, long ndim)
     memcpy(tb->strides, strides, MAX_RANK * sizeof(long));
     tb->data = data;
 
-    return OK;
+    return TB_OK;
 }
 
 void TensorBase_dealloc(TensorBase *tb)
