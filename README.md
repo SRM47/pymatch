@@ -2,6 +2,8 @@
 
 A pure-Python, PyTorch-like automatic differentiation library for education.
 
+A pure-Python, PyTorch-like automatic differentiation library for education.
+
 **pymatch** is a lightweight, educational library designed to demonstrate the fundamentals of automatic differentiation and neural network operations. It provides a simplified, Python-only implementation of core concepts found in popular deep learning frameworks like PyTorch.
 
 ### Key Features
