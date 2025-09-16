@@ -11,6 +11,54 @@ A pure-Python, PyTorch-like automatic differentiation library for education.
 * **Educational Focus:** Designed to be easily understandable and modifiable, making it ideal for learning about automatic differentiation.
 * **Pure Python:** No external dependencies beyond standard Python libraries, enhancing portability and accessibility.
 
+## 🏛️ Core Architecture
+
+The library is split into two main parts: a fast C backend for mathematical computations and a Python frontend that adds machine learning capabilities.
+
+---
+
+### The C Backend: `tensorbase`
+
+Think of `tensorbase` as the project's high-performance engine. It's written in C for speed and handles all the fundamental linear algebra and operations on n-dimensional arrays (tensors), much like the core of NumPy.
+
+This backend lives in `src/match/tensorbase/` and consists of two key files:
+
+* `tensorbase.h`: This is the **header file**, which acts as a blueprint. It **declares** all the available math functions (like matrix multiplication, addition, etc.) so other parts of the C code know what's available.
+* `tensorbasemodule.c`: This is the **Python wrapper**. It serves as the bridge between Python and C. It uses the function declarations from `tensorbase.h` to expose the C functions to Python, allowing you to call the fast C code directly from your Python scripts.
+
+The flow is: Python calls a function in the `tensorbasemodule.c` wrapper, which in turn executes methods defined in `tensorbase.h`
+
+---
+
+### The Python Frontend: `tensor`
+
+The `tensor` module, located at `src/match/tensor.py`, is the smart user interface built on top of the `tensorbase` engine.
+
+It takes the fast, low-level operations provided by the C backend and adds **automatic differentiation**. This feature automatically keeps track of every computation to build a **computation graph**. The graph is then used to calculate gradients (derivatives) automatically. 
+
+In short, `tensorbase` does the heavy lifting (the math), and `tensor` adds the "smarts" (gradient tracking) needed for machine learning.
+
+### The Neural Network Library: nn
+The `nn` library is the final layer, built on top of the `tensor` API, providing the tools to build and train machine learning models.
+
+All layers (like Linear, Conv2D, and even a Transformer) inherit from a base `Module` class, which provides the core logic for backpropagation, allowing gradients to be passed backward through the computation graph created by the tensor objects. 
+
+The library also includes common activation functions (like `ReLU`) and loss functions (like `Cross-Entropy` Loss), all built on top of the `tensor` API.
+
+### Final Architecture Flow (The PyMatch Abstraction Stack)
+The complete flow from low-level C code to high-level neural network layers is as follows:
+
+`tensorbase.h` (C Declarations) → Defines the available C functions.
+
+`tensorbasemodule.c` (C Wrapper) → Exposes the C functions to Python.
+
+`tensorbase` (C Backend Package) → The compiled, high-speed math library available in Python.
+
+`tensor` (Python Frontend) → Uses tensorbase and adds automatic differentiation and computation graphs.
+
+`nn` (Neural Network API) → Uses tensor objects to build network layers and implement backpropagation.
+
+## Usage
 
 ### 🚀 Running the Demo
 
