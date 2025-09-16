@@ -73,8 +73,7 @@ typedef enum
     SCALAR_AGG_ARGMIN,
 } AggScalarOperation;
 
-// Enum for status codes
-// TODO: Prefix status codes with `TB_` or `TensorBase_`; Be consistent with naming
+// Enum for status codes.
 typedef enum
 {
     TB_OK,
