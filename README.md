@@ -38,12 +38,16 @@ It takes the fast, low-level operations provided by the C backend and adds **aut
 
 In short, `tensorbase` does the heavy lifting (the math), and `tensor` adds the "smarts" (gradient tracking) needed for machine learning.
 
+---
+
 ### The Neural Network Library: nn
 The `nn` library is the final layer, built on top of the `tensor` API, providing the tools to build and train machine learning models.
 
 All layers (like Linear, Conv2D, and even a Transformer) inherit from a base `Module` class, which provides the core logic for backpropagation, allowing gradients to be passed backward through the computation graph created by the tensor objects. 
 
 The library also includes common activation functions (like `ReLU`) and loss functions (like `Cross-Entropy` Loss), all built on top of the `tensor` API.
+
+---
 
 ### Final Architecture Flow (The PyMatch Abstraction Stack)
 The complete flow from low-level C code to high-level neural network layers is as follows:
@@ -74,10 +78,11 @@ This is a pure Python library, but it requires `pytorch` separate package for da
     ```
     > 📝 **Note**: An CNN image classifier demo is coming soon\!
 
+---
 
 ### ✅ Running Tests
 
-To run the unit tests, navigate to the `tests/` directory and use Python's `unittest` module.
+To run the unit tests, navigate to root directory and use Python's `unittest` module.
 
 For example, to run the tests in `test_module.py`:
 
@@ -100,7 +105,7 @@ python3 setup.py clean --all && python3 setup.py build_ext --inplace
 **Important**: You must run this command every time you modify the C backend code.
 
 
-### Future Development Ideas
+## Future Development Ideas
 
 * **Conv2d in C**: Implement the Conv2D layer from `/src/match/nn/conv2d.py` in the `src/match/tensorbase` in C.
 * **Pytorch-like Optimizers**: Implement standard optimizers like _SGD_, _RMSProp_, _Adam_, _AdamW_, etc., in a new file `src/match/nn/optimizer.py`.
