@@ -68,9 +68,9 @@ The complete flow from low-level C code to high-level neural network layers is a
 
 This is a pure Python library, but it requires `pytorch` separate package for data loading (coming soon...).
 
-1.  **Install PyTorch**: The PyMatch demo ses PyTorch to load data to train a neural network. You can install it using pip:
+1.  **Install PyTorch**: The PyMatch demo uses `torch` and `torchvision` to load data to train a neural network. You can install it using pip (or any other package manager):
     ```bash
-    pip install torch
+    pip install torch torchvision
     ```
 2.  **Run the Demo**: Navigate to the project's root directory (`pymatch/`) and execute the following command to train a linear classifier on the MNIST dataset:
     ```bash
